@@ -26,6 +26,8 @@ if isinstance(sys.stdin, io.TextIOWrapper):
     sys.stdin.reconfigure(encoding="utf-8")
 
 import datetime
+import threading
+import time
 
 import cv2
 import numpy as np
@@ -49,6 +51,7 @@ _PDF_FONT_BOLD    = "C:/Windows/Fonts/segoeuib.ttf"
 TRANSLATIONS: dict[str, dict] = {
     "en": {
         "lang_name": "English",
+        "rtl": False,
         "select_prompt": "Choose a language / Choisissez une langue / Elige un idioma:\n"
                          "  en  English\n  fr  Français\n  es  Español\n"
                          "  ar  العربية\n  pt  Português\n  de  Deutsch\n"
@@ -62,6 +65,13 @@ TRANSLATIONS: dict[str, dict] = {
         "consent_q":     "{face_label} detected — clothing colour looks {colour}. "
                          "Do you have their consent to share this photo? (yes/no): ",
         "consent_yes":   "  Got it — face {i} marked.",
+        "consent_duration_q": "  How long is consent valid? (seconds, default {default}): ",
+        "consent_duration_invalid": "  Please enter a positive whole number of seconds.",
+        "consent_expired":   "  Consent for face {i} has already expired — face will be blurred.",
+        "consent_timer_label": "{secs}s",
+        "expiry_watching":   "\nWatching for consent expiry — image will update automatically.",
+        "expiry_fired":      "  [timer] Consent for face {i} expired — face blurred and image re-saved.",
+        "expiry_all_done":   "  [timer] All consent timers have fired. Final image saved.",
         "blur_q":        "  No problem. Would you like to blur that face instead? (yes/no): ",
         "blur_no":       "  Okay — face {i} left as-is.",
         "blur_done":     "  Face {i} blurred ({style}).",
@@ -74,12 +84,45 @@ TRANSLATIONS: dict[str, dict] = {
                          "Ready to post!",
         "ai_watermark":  "AI-GENERATED CONTENT",
         "ai_label":      "⚠ AI-generated content detected (EU AI Act label applied).",
+        "ai_none":       "No AI-generated content markers detected.",
         "scene_indoor":  "Scene: indoors.",
         "scene_outdoor": "Scene: outdoors.",
         "score_line":    "Safe Content Score: {score}/100 ({risk}).",
         "score_safe":    "safe",
         "score_medium":  "medium risk",
         "score_high":    "high risk",
+        "pdf_title":          "Content Compliance Report",
+        "pdf_generated":      "Generated: {now}   |   Language: {lang}   |   Image: {name}",
+        "pdf_s1_title":       "1. Image Information",
+        "pdf_file":           "File",
+        "pdf_dimensions":     "Dimensions",
+        "pdf_scene":          "Scene",
+        "pdf_ai_content":     "AI content",
+        "pdf_s2_title":       "2. Face Processing Summary",
+        "pdf_total":          "Total faces detected",
+        "pdf_consented":      "Consented (marked)",
+        "pdf_blurred":        "Blurred",
+        "pdf_breakdown":      "Breakdown",
+        "pdf_skipped":        "Left as-is (skipped)",
+        "pdf_col_idx":        "#",
+        "pdf_col_outcome":    "Outcome",
+        "pdf_col_style":      "Blur style",
+        "pdf_col_colour":     "Clothing colour",
+        "pdf_col_consent":    "Consent (secs)",
+        "pdf_expired":        "expired",
+        "pdf_s3_title":       "3. Safe Content Score",
+        "pdf_score_formula":  "Score formula: 100 x (consented + blurred) / total faces detected.\n"
+                              "100 = fully compliant. Each face left without consent or blur reduces the score.",
+        "pdf_s4_title":       "4. Recommendations",
+        "pdf_rec_skipped":    "{n} face(s) were left without consent or blur. "
+                              "Review these before publishing to avoid privacy violations.",
+        "pdf_rec_ai":         "AI-generated content was detected. Under the EU AI Act, "
+                              "clearly label this content as AI-generated in all publications.",
+        "pdf_rec_score":      "Safe Content Score is below 80. Obtain explicit consent or "
+                              "apply privacy blur to all unprocessed faces before sharing.",
+        "pdf_rec_ok":         "All faces have been consented or properly anonymised. "
+                              "This image appears compliant for sharing.",
+        "pdf_footer":         "Compliact  |  Report generated {now}  |  Output: {name}",
         "yes_answers":   ("yes", "y"),
         "no_answers":    ("no", "n"),
         "colours": {
@@ -92,6 +135,7 @@ TRANSLATIONS: dict[str, dict] = {
     },
     "fr": {
         "lang_name": "Français",
+        "rtl": False,
         "select_prompt": "",  # only shown in English
         "invalid_lang":  "",
         "detected_n":    "{n} visage(s) détecté(s).",
@@ -101,6 +145,13 @@ TRANSLATIONS: dict[str, dict] = {
         "consent_q":     "{face_label} détecté — couleur vestimentaire : {colour}. "
                          "Avez-vous le consentement de cette personne pour partager cette photo ? (oui/non) : ",
         "consent_yes":   "  Parfait — visage {i} marqué.",
+        "consent_duration_q": "  Combien de temps dure le consentement ? (secondes, défaut {default}) : ",
+        "consent_duration_invalid": "  Veuillez entrer un nombre entier positif de secondes.",
+        "consent_expired":   "  Le consentement pour le visage {i} a expiré — le visage sera flouté.",
+        "consent_timer_label": "{secs}s",
+        "expiry_watching":   "\nSurveillance des expirations de consentement — l'image se mettra à jour automatiquement.",
+        "expiry_fired":      "  [minuterie] Le consentement pour le visage {i} a expiré — flouté et image ré-enregistrée.",
+        "expiry_all_done":   "  [minuterie] Toutes les minuteries ont expiré. Image finale enregistrée.",
         "blur_q":        "  Pas de souci. Voulez-vous flouter ce visage à la place ? (oui/non) : ",
         "blur_no":       "  D'accord — visage {i} laissé tel quel.",
         "blur_done":     "  Visage {i} flouté ({style}).",
@@ -113,12 +164,45 @@ TRANSLATIONS: dict[str, dict] = {
                          "Prêt(e) à publier !",
         "ai_watermark":  "CONTENU GÉNÉRÉ PAR IA",
         "ai_label":      "⚠ Contenu généré par IA détecté (étiquette Loi IA UE appliquée).",
+        "ai_none":       "Aucun marqueur de contenu généré par IA détecté.",
         "scene_indoor":  "Scène : intérieur.",
         "scene_outdoor": "Scène : extérieur.",
         "score_line":    "Score de contenu sûr : {score}/100 ({risk}).",
         "score_safe":    "sûr",
         "score_medium":  "risque moyen",
         "score_high":    "risque élevé",
+        "pdf_title":          "Rapport de conformité du contenu",
+        "pdf_generated":      "Généré : {now}   |   Langue : {lang}   |   Image : {name}",
+        "pdf_s1_title":       "1. Informations sur l'image",
+        "pdf_file":           "Fichier",
+        "pdf_dimensions":     "Dimensions",
+        "pdf_scene":          "Scène",
+        "pdf_ai_content":     "Contenu IA",
+        "pdf_s2_title":       "2. Résumé du traitement des visages",
+        "pdf_total":          "Total de visages détectés",
+        "pdf_consented":      "Consentis (marqués)",
+        "pdf_blurred":        "Floutés",
+        "pdf_breakdown":      "Détail",
+        "pdf_skipped":        "Laissés tels quels",
+        "pdf_col_idx":        "#",
+        "pdf_col_outcome":    "Résultat",
+        "pdf_col_style":      "Style de flou",
+        "pdf_col_colour":     "Couleur vêtement",
+        "pdf_col_consent":    "Consentement (sec)",
+        "pdf_expired":        "expiré",
+        "pdf_s3_title":       "3. Score de contenu sûr",
+        "pdf_score_formula":  "Formule : 100 x (consentis + floutés) / total visages détectés.\n"
+                              "100 = totalement conforme. Chaque visage non traité réduit le score.",
+        "pdf_s4_title":       "4. Recommandations",
+        "pdf_rec_skipped":    "{n} visage(s) sans consentement ni floutage. "
+                              "Examinez ces cas avant publication pour éviter les violations de confidentialité.",
+        "pdf_rec_ai":         "Contenu généré par IA détecté. Conformément à la loi IA UE, "
+                              "étiquetez clairement ce contenu comme généré par IA dans toutes les publications.",
+        "pdf_rec_score":      "Le score est inférieur à 80. Obtenez le consentement explicite ou "
+                              "appliquez un flou de confidentialité à tous les visages non traités.",
+        "pdf_rec_ok":         "Tous les visages ont été consentis ou correctement anonymisés. "
+                              "Cette image semble conforme pour publication.",
+        "pdf_footer":         "Compliact  |  Rapport généré le {now}  |  Sortie : {name}",
         "yes_answers":   ("oui", "o", "yes", "y"),
         "no_answers":    ("non", "n", "no"),
         "colours": {
@@ -131,6 +215,7 @@ TRANSLATIONS: dict[str, dict] = {
     },
     "es": {
         "lang_name": "Español",
+        "rtl": False,
         "select_prompt": "",
         "invalid_lang":  "",
         "detected_n":    "Se detectaron {n} cara(s).",
@@ -140,6 +225,13 @@ TRANSLATIONS: dict[str, dict] = {
         "consent_q":     "{face_label} detectada — color de ropa: {colour}. "
                          "¿Tienes el consentimiento de esta persona para compartir la foto? (sí/no): ",
         "consent_yes":   "  Entendido — cara {i} marcada.",
+        "consent_duration_q": "  ¿Cuánto dura el consentimiento? (segundos, por defecto {default}): ",
+        "consent_duration_invalid": "  Por favor ingresa un número entero positivo de segundos.",
+        "consent_expired":   "  El consentimiento para la cara {i} ha expirado — se difuminará.",
+        "consent_timer_label": "{secs}s",
+        "expiry_watching":   "\nEsperando expiración de consentimientos — la imagen se actualizará automáticamente.",
+        "expiry_fired":      "  [temporizador] El consentimiento de la cara {i} expiró — difuminada y guardada.",
+        "expiry_all_done":   "  [temporizador] Todos los temporizadores han expirado. Imagen final guardada.",
         "blur_q":        "  Sin problema. ¿Quieres difuminar esa cara en su lugar? (sí/no): ",
         "blur_no":       "  De acuerdo — cara {i} sin cambios.",
         "blur_done":     "  Cara {i} difuminada ({style}).",
@@ -152,12 +244,45 @@ TRANSLATIONS: dict[str, dict] = {
                          "¡Lista para publicar!",
         "ai_watermark":  "CONTENIDO GENERADO POR IA",
         "ai_label":      "⚠ Contenido generado por IA detectado (etiqueta Ley IA UE aplicada).",
+        "ai_none":       "No se detectaron marcadores de contenido generado por IA.",
         "scene_indoor":  "Escena: interior.",
         "scene_outdoor": "Escena: exterior.",
         "score_line":    "Puntuación de contenido seguro: {score}/100 ({risk}).",
         "score_safe":    "seguro",
         "score_medium":  "riesgo medio",
         "score_high":    "riesgo alto",
+        "pdf_title":          "Informe de cumplimiento de contenido",
+        "pdf_generated":      "Generado: {now}   |   Idioma: {lang}   |   Imagen: {name}",
+        "pdf_s1_title":       "1. Información de la imagen",
+        "pdf_file":           "Archivo",
+        "pdf_dimensions":     "Dimensiones",
+        "pdf_scene":          "Escena",
+        "pdf_ai_content":     "Contenido IA",
+        "pdf_s2_title":       "2. Resumen del procesamiento de caras",
+        "pdf_total":          "Total de caras detectadas",
+        "pdf_consented":      "Con consentimiento (marcadas)",
+        "pdf_blurred":        "Difuminadas",
+        "pdf_breakdown":      "Desglose",
+        "pdf_skipped":        "Sin cambios",
+        "pdf_col_idx":        "#",
+        "pdf_col_outcome":    "Resultado",
+        "pdf_col_style":      "Estilo de difuminado",
+        "pdf_col_colour":     "Color de ropa",
+        "pdf_col_consent":    "Consentimiento (seg)",
+        "pdf_expired":        "expirado",
+        "pdf_s3_title":       "3. Puntuación de contenido seguro",
+        "pdf_score_formula":  "Fórmula: 100 x (consentidos + difuminados) / total caras detectadas.\n"
+                              "100 = totalmente conforme. Cada cara sin tratar reduce la puntuación.",
+        "pdf_s4_title":       "4. Recomendaciones",
+        "pdf_rec_skipped":    "{n} cara(s) sin consentimiento ni difuminado. "
+                              "Revisa estos casos antes de publicar para evitar violaciones de privacidad.",
+        "pdf_rec_ai":         "Se detectó contenido generado por IA. Según la Ley IA UE, "
+                              "etiqueta claramente este contenido como generado por IA en todas las publicaciones.",
+        "pdf_rec_score":      "La puntuación es inferior a 80. Obtén consentimiento explícito o "
+                              "aplica difuminado de privacidad a todas las caras no procesadas.",
+        "pdf_rec_ok":         "Todas las caras han sido consentidas o correctamente anonimizadas. "
+                              "Esta imagen parece conforme para publicar.",
+        "pdf_footer":         "Compliact  |  Informe generado el {now}  |  Salida: {name}",
         "yes_answers":   ("sí", "si", "s", "yes", "y"),
         "no_answers":    ("no", "n"),
         "colours": {
@@ -170,6 +295,7 @@ TRANSLATIONS: dict[str, dict] = {
     },
     "ar": {
         "lang_name": "العربية",
+        "rtl": True,
         "select_prompt": "",
         "invalid_lang":  "",
         "detected_n":    "تم اكتشاف {n} وجه/وجوه.",
@@ -179,6 +305,13 @@ TRANSLATIONS: dict[str, dict] = {
         "consent_q":     "{face_label} — لون الملابس يبدو {colour}. "
                          "هل لديك موافقة هذا الشخص لمشاركة الصورة؟ (نعم/لا): ",
         "consent_yes":   "  تمام — تم تحديد الوجه {i}.",
+        "consent_duration_q": "  كم تدوم الموافقة؟ (ثانية، الافتراضي {default}): ",
+        "consent_duration_invalid": "  الرجاء إدخال عدد صحيح موجب من الثوانٍ.",
+        "consent_expired":   "  انتهت صلاحية موافقة الوجه {i} — سيتم تمويهه.",
+        "consent_timer_label": "{secs}ث",
+        "expiry_watching":   "\nمراقبة انتهاء صلاحية الموافقات — سيتم تحديث الصورة تلقائياً.",
+        "expiry_fired":      "  [مؤقت] انتهت موافقة الوجه {i} — تم التمويه وإعادة الحفظ.",
+        "expiry_all_done":   "  [مؤقت] انتهت جميع المؤقتات. تم حفظ الصورة النهائية.",
         "blur_q":        "  لا مشكلة. هل تريد تمويه هذا الوجه بدلاً من ذلك؟ (نعم/لا): ",
         "blur_no":       "  حسناً — الوجه {i} سيبقى كما هو.",
         "blur_done":     "  تم تمويه الوجه {i} ({style}).",
@@ -191,12 +324,45 @@ TRANSLATIONS: dict[str, dict] = {
                          "جاهز للنشر!",
         "ai_watermark":  "محتوى مُنشأ بالذكاء الاصطناعي",
         "ai_label":      "⚠ تم اكتشاف محتوى مُنشأ بالذكاء الاصطناعي (تم تطبيق تسمية قانون الذكاء الاصطناعي الأوروبي).",
+        "ai_none":       "لم يتم اكتشاف أي علامات على محتوى مُنشأ بالذكاء الاصطناعي.",
         "scene_indoor":  "المشهد: داخلي.",
         "scene_outdoor": "المشهد: خارجي.",
         "score_line":    "نقاط المحتوى الآمن: {score}/100 ({risk}).",
         "score_safe":    "آمن",
         "score_medium":  "خطر متوسط",
         "score_high":    "خطر مرتفع",
+        "pdf_title":          "تقرير الامتثال للمحتوى",
+        "pdf_generated":      "تاريخ الإنشاء: {now}   |   اللغة: {lang}   |   الصورة: {name}",
+        "pdf_s1_title":       "1. معلومات الصورة",
+        "pdf_file":           "الملف",
+        "pdf_dimensions":     "الأبعاد",
+        "pdf_scene":          "المشهد",
+        "pdf_ai_content":     "محتوى الذكاء الاصطناعي",
+        "pdf_s2_title":       "2. ملخص معالجة الوجوه",
+        "pdf_total":          "إجمالي الوجوه المكتشفة",
+        "pdf_consented":      "موافق عليها (مُعلَّمة)",
+        "pdf_blurred":        "مموَّهة",
+        "pdf_breakdown":      "التفصيل",
+        "pdf_skipped":        "متروكة كما هي",
+        "pdf_col_idx":        "#",
+        "pdf_col_outcome":    "النتيجة",
+        "pdf_col_style":      "أسلوب التمويه",
+        "pdf_col_colour":     "لون الملابس",
+        "pdf_col_consent":    "الموافقة (ثانية)",
+        "pdf_expired":        "منتهية",
+        "pdf_s3_title":       "3. نقاط المحتوى الآمن",
+        "pdf_score_formula":  "الصيغة: 100 × (الموافق عليها + المموَّهة) / إجمالي الوجوه المكتشفة.\n"
+                              "100 = امتثال كامل. كل وجه غير معالج يخفض النقاط.",
+        "pdf_s4_title":       "4. التوصيات",
+        "pdf_rec_skipped":    "تُرك {n} وجه/وجوه دون موافقة أو تمويه. "
+                              "راجع هذه الحالات قبل النشر لتجنب انتهاكات الخصوصية.",
+        "pdf_rec_ai":         "تم اكتشاف محتوى مُنشأ بالذكاء الاصطناعي. وفق قانون الذكاء الاصطناعي الأوروبي، "
+                              "صنِّف هذا المحتوى بوضوح كمحتوى ذكاء اصطناعي في جميع المنشورات.",
+        "pdf_rec_score":      "النقاط أقل من 80. احصل على موافقة صريحة أو "
+                              "طبِّق تمويه الخصوصية على جميع الوجوه غير المعالجة.",
+        "pdf_rec_ok":         "تمت الموافقة على جميع الوجوه أو إخفاء هويتها بشكل صحيح. "
+                              "تبدو هذه الصورة متوافقة للنشر.",
+        "pdf_footer":         "Compliact  |  تم إنشاء التقرير: {now}  |  المخرج: {name}",
         "yes_answers":   ("نعم", "yes", "y"),
         "no_answers":    ("لا", "no", "n"),
         "colours": {
@@ -209,6 +375,7 @@ TRANSLATIONS: dict[str, dict] = {
     },
     "pt": {
         "lang_name": "Português",
+        "rtl": False,
         "select_prompt": "",
         "invalid_lang":  "",
         "detected_n":    "{n} rosto(s) detectado(s).",
@@ -218,6 +385,13 @@ TRANSLATIONS: dict[str, dict] = {
         "consent_q":     "{face_label} detectado — cor da roupa: {colour}. "
                          "Você tem o consentimento dessa pessoa para compartilhar a foto? (sim/não): ",
         "consent_yes":   "  Certo — rosto {i} marcado.",
+        "consent_duration_q": "  Por quanto tempo o consentimento é válido? (segundos, padrão {default}): ",
+        "consent_duration_invalid": "  Por favor insira um número inteiro positivo de segundos.",
+        "consent_expired":   "  O consentimento para o rosto {i} expirou — o rosto será desfocado.",
+        "consent_timer_label": "{secs}s",
+        "expiry_watching":   "\nAguardando expiração dos consentimentos — a imagem será atualizada automaticamente.",
+        "expiry_fired":      "  [temporizador] O consentimento do rosto {i} expirou — desfocado e imagem re-salva.",
+        "expiry_all_done":   "  [temporizador] Todos os temporizadores dispararam. Imagem final salva.",
         "blur_q":        "  Sem problema. Quer desfocar esse rosto? (sim/não): ",
         "blur_no":       "  Ok — rosto {i} mantido como está.",
         "blur_done":     "  Rosto {i} desfocado ({style}).",
@@ -230,12 +404,45 @@ TRANSLATIONS: dict[str, dict] = {
                          "Pronto para publicar!",
         "ai_watermark":  "CONTEÚDO GERADO POR IA",
         "ai_label":      "⚠ Conteúdo gerado por IA detectado (rótulo Lei IA UE aplicado).",
+        "ai_none":       "Nenhum marcador de conteúdo gerado por IA detectado.",
         "scene_indoor":  "Cena: interior.",
         "scene_outdoor": "Cena: exterior.",
         "score_line":    "Pontuação de conteúdo seguro: {score}/100 ({risk}).",
         "score_safe":    "seguro",
         "score_medium":  "risco médio",
         "score_high":    "risco alto",
+        "pdf_title":          "Relatório de conformidade de conteúdo",
+        "pdf_generated":      "Gerado: {now}   |   Idioma: {lang}   |   Imagem: {name}",
+        "pdf_s1_title":       "1. Informações da imagem",
+        "pdf_file":           "Arquivo",
+        "pdf_dimensions":     "Dimensões",
+        "pdf_scene":          "Cena",
+        "pdf_ai_content":     "Conteúdo IA",
+        "pdf_s2_title":       "2. Resumo do processamento de rostos",
+        "pdf_total":          "Total de rostos detectados",
+        "pdf_consented":      "Com consentimento (marcados)",
+        "pdf_blurred":        "Desfocados",
+        "pdf_breakdown":      "Detalhamento",
+        "pdf_skipped":        "Sem alteração",
+        "pdf_col_idx":        "#",
+        "pdf_col_outcome":    "Resultado",
+        "pdf_col_style":      "Estilo de desfoque",
+        "pdf_col_colour":     "Cor da roupa",
+        "pdf_col_consent":    "Consentimento (seg)",
+        "pdf_expired":        "expirado",
+        "pdf_s3_title":       "3. Pontuação de conteúdo seguro",
+        "pdf_score_formula":  "Fórmula: 100 x (consentidos + desfocados) / total de rostos detectados.\n"
+                              "100 = totalmente conforme. Cada rosto não tratado reduz a pontuação.",
+        "pdf_s4_title":       "4. Recomendações",
+        "pdf_rec_skipped":    "{n} rosto(s) sem consentimento ou desfoque. "
+                              "Revise estes casos antes de publicar para evitar violações de privacidade.",
+        "pdf_rec_ai":         "Conteúdo gerado por IA detectado. Conforme a Lei IA UE, "
+                              "rotule claramente este conteúdo como gerado por IA em todas as publicações.",
+        "pdf_rec_score":      "A pontuação está abaixo de 80. Obtenha consentimento explícito ou "
+                              "aplique desfoque de privacidade a todos os rostos não processados.",
+        "pdf_rec_ok":         "Todos os rostos foram consentidos ou devidamente anonimizados. "
+                              "Esta imagem parece estar em conformidade para publicação.",
+        "pdf_footer":         "Compliact  |  Relatório gerado em {now}  |  Saída: {name}",
         "yes_answers":   ("sim", "s", "yes", "y"),
         "no_answers":    ("não", "nao", "n", "no"),
         "colours": {
@@ -248,6 +455,7 @@ TRANSLATIONS: dict[str, dict] = {
     },
     "de": {
         "lang_name": "Deutsch",
+        "rtl": False,
         "select_prompt": "",
         "invalid_lang":  "",
         "detected_n":    "{n} Gesicht(er) erkannt.",
@@ -257,6 +465,13 @@ TRANSLATIONS: dict[str, dict] = {
         "consent_q":     "{face_label} erkannt — Kleidungsfarbe: {colour}. "
                          "Liegt das Einverständnis dieser Person vor, das Foto zu teilen? (ja/nein): ",
         "consent_yes":   "  Alles klar — Gesicht {i} markiert.",
+        "consent_duration_q": "  Wie lange gilt das Einverständnis? (Sekunden, Standard {default}): ",
+        "consent_duration_invalid": "  Bitte eine positive ganze Zahl für Sekunden eingeben.",
+        "consent_expired":   "  Das Einverständnis für Gesicht {i} ist abgelaufen — Gesicht wird unkenntlich gemacht.",
+        "consent_timer_label": "{secs}s",
+        "expiry_watching":   "\nWarte auf Ablauf der Einverständnisse — Bild wird automatisch aktualisiert.",
+        "expiry_fired":      "  [Timer] Einverständnis für Gesicht {i} abgelaufen — unkenntlich gemacht und Bild neu gespeichert.",
+        "expiry_all_done":   "  [Timer] Alle Timer abgelaufen. Finales Bild gespeichert.",
         "blur_q":        "  Kein Problem. Soll das Gesicht stattdessen unkenntlich gemacht werden? (ja/nein): ",
         "blur_no":       "  Okay — Gesicht {i} bleibt unverändert.",
         "blur_done":     "  Gesicht {i} unkenntlich gemacht ({style}).",
@@ -269,12 +484,45 @@ TRANSLATIONS: dict[str, dict] = {
                          "Bereit zum Teilen!",
         "ai_watermark":  "KI-GENERIERTER INHALT",
         "ai_label":      "⚠ KI-generierter Inhalt erkannt (EU-KI-Gesetz-Label angebracht).",
+        "ai_none":       "Keine Marker für KI-generierte Inhalte erkannt.",
         "scene_indoor":  "Szene: drinnen.",
         "scene_outdoor": "Szene: draußen.",
         "score_line":    "Inhaltssicherheitsbewertung: {score}/100 ({risk}).",
         "score_safe":    "sicher",
         "score_medium":  "mittleres Risiko",
         "score_high":    "hohes Risiko",
+        "pdf_title":          "Inhalts-Compliance-Bericht",
+        "pdf_generated":      "Erstellt: {now}   |   Sprache: {lang}   |   Bild: {name}",
+        "pdf_s1_title":       "1. Bildinformationen",
+        "pdf_file":           "Datei",
+        "pdf_dimensions":     "Abmessungen",
+        "pdf_scene":          "Szene",
+        "pdf_ai_content":     "KI-Inhalt",
+        "pdf_s2_title":       "2. Zusammenfassung der Gesichtsverarbeitung",
+        "pdf_total":          "Erkannte Gesichter gesamt",
+        "pdf_consented":      "Mit Einverständnis (markiert)",
+        "pdf_blurred":        "Unkenntlich gemacht",
+        "pdf_breakdown":      "Aufschlüsselung",
+        "pdf_skipped":        "Unverändert",
+        "pdf_col_idx":        "#",
+        "pdf_col_outcome":    "Ergebnis",
+        "pdf_col_style":      "Unkenntlichungs-Stil",
+        "pdf_col_colour":     "Kleidungsfarbe",
+        "pdf_col_consent":    "Einverständnis (Sek.)",
+        "pdf_expired":        "abgelaufen",
+        "pdf_s3_title":       "3. Inhaltssicherheitsbewertung",
+        "pdf_score_formula":  "Formel: 100 x (einverstanden + unkenntlich) / erkannte Gesichter gesamt.\n"
+                              "100 = vollständig konform. Jedes unbehandelte Gesicht senkt die Bewertung.",
+        "pdf_s4_title":       "4. Empfehlungen",
+        "pdf_rec_skipped":    "{n} Gesicht(er) ohne Einverständnis oder Unkenntlichmachung hinterlassen. "
+                              "Bitte vor der Veröffentlichung prüfen, um Datenschutzverletzungen zu vermeiden.",
+        "pdf_rec_ai":         "KI-generierter Inhalt erkannt. Gemäß EU-KI-Gesetz "
+                              "diesen Inhalt in allen Veröffentlichungen klar als KI-generiert kennzeichnen.",
+        "pdf_rec_score":      "Bewertung unter 80. Ausdrückliches Einverständnis einholen oder "
+                              "Datenschutz-Unkenntlichmachung auf alle unbehandelten Gesichter anwenden.",
+        "pdf_rec_ok":         "Alle Gesichter wurden zugestimmt oder ordnungsgemäß anonymisiert. "
+                              "Dieses Bild scheint konform zum Teilen.",
+        "pdf_footer":         "Compliact  |  Bericht erstellt am {now}  |  Ausgabe: {name}",
         "yes_answers":   ("ja", "j", "yes", "y"),
         "no_answers":    ("nein", "n", "no"),
         "colours": {
@@ -287,6 +535,7 @@ TRANSLATIONS: dict[str, dict] = {
     },
     "ur": {
         "lang_name": "اردو",
+        "rtl": True,
         "select_prompt": "",
         "invalid_lang":  "",
         "detected_n":    "{n} چہرہ/چہرے پائے گئے۔",
@@ -296,6 +545,13 @@ TRANSLATIONS: dict[str, dict] = {
         "consent_q":     "{face_label} ملا — لباس کا رنگ {colour} لگتا ہے۔ "
                          "کیا آپ کے پاس اس شخص کی اجازت ہے کہ یہ تصویر شیئر کریں؟ (ہاں/نہیں): ",
         "consent_yes":   "  بالکل — چہرہ {i} نشان زد کر دیا گیا۔",
+        "consent_duration_q": "  رضامندی کتنے وقت کے لیے درست ہے؟ (سیکنڈ، پہلے سے طے {default}): ",
+        "consent_duration_invalid": "  براہ کرم سیکنڈ کی ایک مثبت پوری تعداد درج کریں۔",
+        "consent_expired":   "  چہرہ {i} کی رضامندی ختم ہو گئی — چہرہ دھندلا کر دیا جائے گا۔",
+        "consent_timer_label": "{secs}s",
+        "expiry_watching":   "\nرضامندیوں کی میعاد ختم ہونے کا انتظار — تصویر خود بخود اپڈیٹ ہو گی۔",
+        "expiry_fired":      "  [ٹائمر] چہرہ {i} کی رضامندی ختم — دھندلا کر کے دوبارہ محفوظ کیا گیا۔",
+        "expiry_all_done":   "  [ٹائمر] تمام ٹائمر ختم ہو گئے۔ آخری تصویر محفوظ۔",
         "blur_q":        "  کوئی بات نہیں۔ کیا آپ اس کی بجائے یہ چہرہ دھندلا کرنا چاہیں گے؟ (ہاں/نہیں): ",
         "blur_no":       "  ٹھیک ہے — چہرہ {i} جوں کا توں چھوڑ دیا گیا۔",
         "blur_done":     "  چہرہ {i} دھندلا کر دیا گیا ({style})۔",
@@ -308,12 +564,45 @@ TRANSLATIONS: dict[str, dict] = {
                          "پوسٹ کے لیے تیار!",
         "ai_watermark":  "AI سے تیار کردہ مواد",
         "ai_label":      "⚠ AI سے تیار کردہ مواد ملا (EU AI Act لیبل لگایا گیا)۔",
+        "ai_none":       "AI سے تیار کردہ مواد کی کوئی علامت نہیں ملی۔",
         "scene_indoor":  "منظر: اندرونی۔",
         "scene_outdoor": "منظر: بیرونی۔",
         "score_line":    "محفوظ مواد اسکور: {score}/100 ({risk})۔",
         "score_safe":    "محفوظ",
         "score_medium":  "درمیانہ خطرہ",
         "score_high":    "زیادہ خطرہ",
+        "pdf_title":          "مواد کی تعمیل رپورٹ",
+        "pdf_generated":      "تیار کردہ: {now}   |   زبان: {lang}   |   تصویر: {name}",
+        "pdf_s1_title":       "1. تصویر کی معلومات",
+        "pdf_file":           "فائل",
+        "pdf_dimensions":     "سائز",
+        "pdf_scene":          "منظر",
+        "pdf_ai_content":     "AI مواد",
+        "pdf_s2_title":       "2. چہروں کی پروسیسنگ کا خلاصہ",
+        "pdf_total":          "کل شناخت شدہ چہرے",
+        "pdf_consented":      "رضامندی والے (نشان زد)",
+        "pdf_blurred":        "دھندلے کیے گئے",
+        "pdf_breakdown":      "تفصیل",
+        "pdf_skipped":        "بغیر تبدیلی",
+        "pdf_col_idx":        "#",
+        "pdf_col_outcome":    "نتیجہ",
+        "pdf_col_style":      "دھندلاپن کا انداز",
+        "pdf_col_colour":     "لباس کا رنگ",
+        "pdf_col_consent":    "رضامندی (سیکنڈ)",
+        "pdf_expired":        "ختم",
+        "pdf_s3_title":       "3. محفوظ مواد اسکور",
+        "pdf_score_formula":  "فارمولہ: 100 × (رضامندی + دھندلے) ÷ کل چہرے۔\n"
+                              "100 = مکمل تعمیل۔ ہر غیر عملدرآمد چہرہ اسکور کم کرتا ہے۔",
+        "pdf_s4_title":       "4. سفارشات",
+        "pdf_rec_skipped":    "{n} چہرہ/چہرے بغیر رضامندی یا دھندلاپن کے چھوڑے گئے۔ "
+                              "اشاعت سے پہلے ان کا جائزہ لیں تاکہ رازداری کی خلاف ورزی سے بچا جا سکے۔",
+        "pdf_rec_ai":         "AI سے تیار کردہ مواد ملا۔ EU AI Act کے تحت "
+                              "اسے تمام اشاعتوں میں AI سے تیار کردہ کے طور پر واضح طور پر لیبل کریں۔",
+        "pdf_rec_score":      "اسکور 80 سے کم ہے۔ واضح رضامندی حاصل کریں یا "
+                              "تمام غیر عملدرآمد چہروں پر رازداری کا دھندلاپن لگائیں۔",
+        "pdf_rec_ok":         "تمام چہروں کی رضامندی حاصل کر لی گئی یا انہیں مناسب طریقے سے گمنام کر دیا گیا۔ "
+                              "یہ تصویر اشاعت کے لیے تعمیل کے مطابق دکھتی ہے۔",
+        "pdf_footer":         "Compliact  |  رپورٹ تیار کردہ {now}  |  آؤٹ پٹ: {name}",
         "yes_answers":   ("ہاں", "h", "yes", "y"),
         "no_answers":    ("نہیں", "n", "no"),
         "colours": {
@@ -432,6 +721,89 @@ def ask_blur_style(strings: dict) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Consent duration helpers
+# ---------------------------------------------------------------------------
+
+#: Default consent window in seconds shown as the placeholder in the prompt.
+_DEFAULT_CONSENT_SECONDS: int = 30
+
+
+def ask_consent_duration(strings: dict) -> int:
+    """Ask how many seconds consent is valid for.
+
+    Returns the number of seconds entered by the user (minimum 1).
+    Pressing Enter with no value uses *_DEFAULT_CONSENT_SECONDS*.
+    """
+    prompt = strings["consent_duration_q"].format(default=_DEFAULT_CONSENT_SECONDS)
+    while True:
+        raw = input(prompt).strip()
+        if raw == "":
+            return _DEFAULT_CONSENT_SECONDS
+        if raw.isdigit() and int(raw) > 0:
+            return int(raw)
+        print(strings["consent_duration_invalid"])
+
+
+def draw_consent_timer(
+    image,
+    x: int,
+    y: int,
+    w: int,
+    h: int,
+    seconds_remaining: int,
+    strings: dict,
+) -> None:
+    """Draw a countdown badge in the top-right corner of the face bounding box.
+
+    The badge shows the remaining consent time (e.g. "30s").  Colour shifts
+    from green → amber → red as the clock winds down relative to the original
+    grant duration (uses absolute value for colouring):
+      > 60 s  green
+      > 10 s  amber
+      ≤ 10 s  red
+    """
+    label = strings["consent_timer_label"].format(secs=seconds_remaining)
+
+    # Colour: green → amber → red
+    if seconds_remaining > 60:
+        bg_colour  = (34, 139, 34)    # forest green  (BGR)
+        txt_colour = (255, 255, 255)
+    elif seconds_remaining > 10:
+        bg_colour  = (0, 165, 255)    # amber/orange  (BGR)
+        txt_colour = (255, 255, 255)
+    else:
+        bg_colour  = (30, 30, 200)    # red           (BGR)
+        txt_colour = (255, 255, 255)
+
+    font       = cv2.FONT_HERSHEY_SIMPLEX
+    font_scale = max(0.4, min(0.6, w / 120))
+    thickness  = 1
+
+    (tw, th), baseline = cv2.getTextSize(label, font, font_scale, thickness)
+
+    pad    = 4
+    bx1    = x + w - tw - pad * 2      # badge left
+    by1    = y - th - pad * 2 - 2      # badge top  (just above the box)
+    bx2    = x + w                      # badge right
+    by2    = y                          # badge bottom
+
+    # Keep badge inside image boundaries
+    img_h, img_w = image.shape[:2]
+    if by1 < 0:
+        by1 = y
+        by2 = y + th + pad * 2
+    bx1 = max(0, bx1)
+
+    # Filled rectangle background
+    cv2.rectangle(image, (bx1, by1), (bx2, by2), bg_colour, cv2.FILLED)
+    # Text centred in badge
+    tx = bx1 + pad
+    ty = by2 - pad - baseline
+    cv2.putText(image, label, (tx, ty), font, font_scale,
+                txt_colour, thickness, cv2.LINE_AA)
+
+
+# ---------------------------------------------------------------------------
 # Clothing colour hint
 # ---------------------------------------------------------------------------
 
@@ -469,11 +841,39 @@ def dominant_clothing_colour(image, x: int, y: int, w: int, h: int,
 # Blur implementations
 # ---------------------------------------------------------------------------
 
+# def blur_face_square(image, x: int, y: int, w: int, h: int) -> None:
+#     """Pixelate the face ROI: shrink to a small grid then scale back up."""
+#     if w <= 0 or h <= 0:
+#         return
+#     # Use a grid size that's always at least 2 pixels but scales with face size
+#     grid = max(2, min(w, h) // 8)
+#     face_roi = image[y:y + h, x:x + w]
+#     small = cv2.resize(face_roi, (grid, grid), interpolation=cv2.INTER_LINEAR)
+#     image[y:y + h, x:x + w] = cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
+
 def blur_face_square(image, x: int, y: int, w: int, h: int) -> None:
-    """Pixelate the face ROI: shrink to 10×10 then scale back up."""
-    face_roi = image[y:y + h, x:x + w]
-    small = cv2.resize(face_roi, (10, 10), interpolation=cv2.INTER_LINEAR)
-    image[y:y + h, x:x + w] = cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
+    """Pixelate the face ROI: shrink to a small grid then scale back up."""
+    if w <= 0 or h <= 0:
+        return
+
+    # 1. Extract the ROI (NumPy automatically handles edge truncation)
+    face_roi = image[max(0, y):y + h, max(0, x):x + w]
+    
+    # 2. Get the actual dimensions of the extracted slice
+    actual_h, actual_w = face_roi.shape[:2]
+    if actual_h == 0 or actual_w == 0:
+        return
+
+    # 3. Calculate grid size based on actual width/height
+    grid: int = max(2, min(actual_w, actual_h) // 8)
+
+    # 4. Downsample to pixelate
+    small = cv2.resize(face_roi, (grid, grid), interpolation=cv2.INTER_LINEAR)
+    
+    # 5. Upsample back to the EXACT dimensions of the slice to prevent crash
+    image[max(0, y):y + h, max(0, x):x + w] = cv2.resize(
+        small, (actual_w, actual_h), interpolation=cv2.INTER_NEAREST
+    )
 
 
 def _ellipse_mask(h: int, w: int) -> np.ndarray:
@@ -484,7 +884,7 @@ def _ellipse_mask(h: int, w: int) -> np.ndarray:
         center=(w // 2, h // 2),
         axes=(w // 2, h // 2),
         angle=0, startAngle=0, endAngle=360,
-        color=255, thickness=-1,
+        color=(255,255,255), thickness=-1,
     )
     return mask
 
@@ -500,11 +900,15 @@ def blur_face_oval(image, x: int, y: int, w: int, h: int) -> None:
 
 def blur_face_strong(image, x: int, y: int, w: int, h: int) -> None:
     """Apply a heavy soft Gaussian blur (artistic, non-pixelated)."""
+    if w <= 0 or h <= 0:
+        return
     face_roi = image[y:y + h, x:x + w]
-    # Three passes of a large-kernel Gaussian give a smooth, painterly effect.
+    # Kernel must be odd and smaller than the ROI dimensions
+    ksize = min(w if w % 2 == 1 else w - 1, h if h % 2 == 1 else h - 1, 99)
+    ksize = max(ksize, 3)
     blurred = face_roi
     for _ in range(3):
-        blurred = cv2.GaussianBlur(blurred, (99, 99), sigmaX=30)
+        blurred = cv2.GaussianBlur(blurred, (ksize, ksize), sigmaX=30)
     image[y:y + h, x:x + w] = blurred
 
 
@@ -610,7 +1014,7 @@ def detect_ai_content(image_path: str) -> bool:
     try:
         pil_img = Image.open(image_path)
         # --- JPEG / TIFF EXIF ---
-        exif_data = pil_img._getexif() if hasattr(pil_img, "_getexif") else None
+        exif_data = pil_img.getexif() if hasattr(pil_img, "_getexif") else None
         if exif_data:
             # Tag IDs: 305=Software, 315=Artist, 270=ImageDescription, 37510=UserComment
             check_tags = [305, 315, 270, 37510]
@@ -663,7 +1067,7 @@ def classify_scene(image) -> str:
     # Convert top strip to HSV to measure sky-blue saturation
     hsv = cv2.cvtColor(top_third, cv2.COLOR_BGR2HSV)
     # Sky blue: hue 90-130 (OpenCV 0-180), saturation > 50, value > 80
-    sky_mask = cv2.inRange(hsv, (90, 50, 80), (130, 255, 255))
+    sky_mask = cv2.inRange(hsv, np.array([90, 50, 80]), np.array([130, 255, 255]))
     sky_ratio = sky_mask.sum() / (sky_mask.size * 255)
 
     # Edge density in top third via Canny
@@ -745,8 +1149,18 @@ def run_consent_flow(image, faces, strings: dict) -> tuple[dict, list[dict]]:
     For each detected face:
       1. Sample the clothing colour below the bbox (translated) and include in prompt.
       2. Ask for consent in the selected language.
-         - yes  → draw a numbered green bounding rectangle.
+         - yes  → ask for consent duration (seconds), draw green bbox + countdown badge.
+                   If the supplied duration is 0 the consent is treated as already expired
+                   and the face is blurred automatically.
          - no   → ask whether to blur, then ask blur style.
+
+    Dynamic-blur / consent expiry
+    ──────────────────────────────
+    When consent is granted the user specifies how many seconds it is valid for.
+    The remaining time is stamped as a coloured badge (green / amber / red) next to
+    the face on the output image.  If the user enters 0 seconds the consent is
+    considered expired and the face is blurred immediately, mirroring the behaviour
+    of a live countdown reaching zero.
 
     Returns (tally, face_details) where tally = {consented, blurred, skipped}
     and face_details is a list of per-face dicts for the PDF report.
@@ -767,13 +1181,32 @@ def run_consent_flow(image, faces, strings: dict) -> tuple[dict, list[dict]]:
         )
 
         if has_consent:
-            cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-            label = f"face {i}" if total > 1 else "face"
-            cv2.putText(image, label, (x, y - 8), cv2.FONT_HERSHEY_SIMPLEX,
-                        0.55, (0, 255, 0), 1, cv2.LINE_AA)
-            print(strings["consent_yes"].format(i=i))
-            tally["consented"] += 1
-            face_details.append({"index": i, "outcome": "consented", "style": "-", "colour": colour})
+            # ── Dynamic blur: ask how long consent is valid ──────────────────
+            consent_secs = ask_consent_duration(strings)
+            granted_at   = time.time()          # wall-clock moment consent was given
+
+            if consent_secs <= 0:
+                # Consent has already expired — auto-blur
+                print(strings["consent_expired"].format(i=i))
+                blur_face_square(image, x, y, w, h)
+                tally["blurred"]["square"] = tally["blurred"].get("square", 0) + 1
+                face_details.append({
+                    "index": i, "outcome": "blurred", "style": "square",
+                    "colour": colour, "consent_secs": 0, "_granted_at": granted_at,
+                })
+            else:
+                # Consent is active — mark face and stamp countdown badge
+                cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                label = f"face {i}" if total > 1 else "face"
+                cv2.putText(image, label, (x, y - 8), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.55, (0, 255, 0), 1, cv2.LINE_AA)
+                draw_consent_timer(image, x, y, w, h, consent_secs, strings)
+                print(strings["consent_yes"].format(i=i))
+                tally["consented"] += 1
+                face_details.append({
+                    "index": i, "outcome": "consented", "style": "-",
+                    "colour": colour, "consent_secs": consent_secs, "_granted_at": granted_at,
+                })
         else:
             should_blur = ask_yes_no(strings["blur_q"], strings)
             if should_blur:
@@ -792,11 +1225,17 @@ def run_consent_flow(image, faces, strings: dict) -> tuple[dict, list[dict]]:
                     blur_face_square(image, x, y, w, h)
                 print(strings["blur_done"].format(i=i, style=style))
                 tally["blurred"][style] = tally["blurred"].get(style, 0) + 1
-                face_details.append({"index": i, "outcome": "blurred", "style": style, "colour": colour})
+                face_details.append({
+                    "index": i, "outcome": "blurred", "style": style,
+                    "colour": colour, "consent_secs": None,
+                })
             else:
                 print(strings["blur_no"].format(i=i))
                 tally["skipped"] += 1
-                face_details.append({"index": i, "outcome": "skipped", "style": "-", "colour": colour})
+                face_details.append({
+                    "index": i, "outcome": "skipped", "style": "-",
+                    "colour": colour, "consent_secs": None,
+                })
     return tally, face_details
 
 
@@ -878,13 +1317,13 @@ def generate_pdf_report(
     score         = safe_content_score(tally)
     if score >= 80:
         risk_label = strings["score_safe"]
-        risk_colour = (34, 139, 34)      # forest green
+        risk_colour = (34, 139, 34)
     elif score >= 50:
         risk_label = strings["score_medium"]
-        risk_colour = (210, 120, 0)      # amber
+        risk_colour = (210, 120, 0)
     else:
         risk_label = strings["score_high"]
-        risk_colour = (180, 30, 30)      # red
+        risk_colour = (180, 30, 30)
 
     # --- PDF setup ---
     pdf = FPDF()
@@ -892,28 +1331,28 @@ def generate_pdf_report(
     pdf.add_font("Segoe",  "B", _PDF_FONT_BOLD)
     pdf.set_auto_page_break(auto=True, margin=20)
     pdf.add_page()
-    W = pdf.w - pdf.l_margin - pdf.r_margin  # usable width
+    W = pdf.w - pdf.l_margin - pdf.r_margin   # usable width (190 mm on A4)
+
+    # ── Helpers ─────────────────────────────────────────────────────────────
 
     def h1(text: str) -> None:
         pdf.set_font("Segoe", "B", 18)
         pdf.set_text_color(20, 40, 80)
-        pdf.cell(W, 10, text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.multi_cell(W, 10, text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(1)
 
     def h2(text: str) -> None:
         pdf.set_font("Segoe", "B", 13)
         pdf.set_text_color(40, 80, 140)
         pdf.set_fill_color(235, 241, 250)
-        pdf.cell(W, 8, f"  {text}", fill=True,
-                 new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-        pdf.ln(2)
+        pdf.multi_cell(W, 8, f"  {text}", fill=True,
+                       new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.ln(1)
 
-    def body(text: str, indent: int = 0) -> None:
+    def body(text: str) -> None:
         pdf.set_font("Segoe", "", 11)
         pdf.set_text_color(40, 40, 40)
-        pdf.cell(indent)
-        pdf.multi_cell(W - indent, 7, text,
-                       new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.multi_cell(W, 7, text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     def rule() -> None:
         pdf.set_draw_color(200, 200, 200)
@@ -921,54 +1360,91 @@ def generate_pdf_report(
                  pdf.l_margin + W, pdf.get_y())
         pdf.ln(3)
 
+    # Two-column label/value layout — LW (label) + VW (value) = W exactly.
+    LW = 48
+    VW = W - LW
+
+    def row2(label: str, value: str) -> None:
+        """Bold label (LW mm) on the left, regular value (VW mm) on the right.
+        Both use multi_cell so long text wraps inside its column; nothing clips.
+        """
+        row_y = pdf.get_y()
+
+        pdf.set_font("Segoe", "B", 11)
+        pdf.set_text_color(80, 80, 80)
+        pdf.set_xy(pdf.l_margin, row_y)
+        pdf.multi_cell(LW, 7, label, align="L",
+                       new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        label_bottom = pdf.get_y()
+
+        pdf.set_font("Segoe", "", 11)
+        pdf.set_text_color(40, 40, 40)
+        pdf.set_xy(pdf.l_margin + LW, row_y)
+        pdf.multi_cell(VW, 7, value, align="L",
+                       new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        value_bottom = pdf.get_y()
+
+        pdf.set_y(max(label_bottom, value_bottom))
+
     # ── Header bar ──────────────────────────────────────────────────────────
     pdf.set_fill_color(20, 40, 80)
     pdf.rect(pdf.l_margin, pdf.get_y(), W, 14, style="F")
     pdf.set_font("Segoe", "B", 13)
     pdf.set_text_color(255, 255, 255)
     pdf.set_y(pdf.get_y() + 2)
-    pdf.cell(W, 10, "  ConsentAI  |  Compliance Report",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.multi_cell(W, 10, "  Compliact  |  " + strings["pdf_title"],
+                   new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_text_color(40, 40, 40)
-    pdf.ln(4)
+    pdf.ln(2)
 
     # ── Title ────────────────────────────────────────────────────────────────
-    h1("Content Compliance Report")
+    h1(strings["pdf_title"])
     pdf.set_font("Segoe", "", 10)
     pdf.set_text_color(120, 120, 120)
-    pdf.cell(W, 6, f"Generated: {now}   |   Language: {lang}   |   Image: {Path(image_path).name}",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.ln(4)
+    pdf.multi_cell(W, 6,
+                   strings["pdf_generated"].format(
+                       now=now, lang=lang, name=Path(image_path).name),
+                   new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.ln(2)
     rule()
 
     # ── Section 1: Image info ────────────────────────────────────────────────
-    h2("1. Image Information")
+    h2(strings["pdf_s1_title"])
     img_cv = cv2.imread(image_path)
     if img_cv is not None:
         ih, iw = img_cv.shape[:2]
-        body(f"File:       {Path(image_path).name}")
-        body(f"Dimensions: {iw} x {ih} px")
+        row2(strings["pdf_file"],       Path(image_path).name)
+        row2(strings["pdf_dimensions"], f"{iw} x {ih} px")
     scene_str = strings["scene_indoor"] if scene == "indoor" else strings["scene_outdoor"]
-    body(f"Scene:      {scene_str}")
-    ai_str = strings["ai_label"] if ai_flag else "No AI-generated content markers detected."
-    body(f"AI content: {ai_str}")
-    pdf.ln(3)
-
-    # ── Section 2: Face processing summary ───────────────────────────────────
-    h2("2. Face Processing Summary")
-    body(f"Total faces detected:  {total_faces}")
-    body(f"  Consented (marked):  {consented}")
-    body(f"  Blurred:             {blurred_total}")
-    if tally["blurred"]:
-        breakdown = ", ".join(f"{c} {s}" for s, c in sorted(tally["blurred"].items()) if c)
-        body(f"    Breakdown:         {breakdown}", indent=4)
-    body(f"  Left as-is (skipped): {skipped}")
+    # Strip leading ⚠ — Segoe UI in fpdf2 cannot render that glyph
+    ai_str = strings["ai_label"] if ai_flag else strings["ai_none"]
+    ai_str = ai_str.lstrip("⚠ ")
+    row2(strings["pdf_scene"],      scene_str)
+    row2(strings["pdf_ai_content"], ai_str)
     pdf.ln(2)
 
-    # Per-face table
+    # ── Section 2: Face processing summary ───────────────────────────────────
+    h2(strings["pdf_s2_title"])
+    row2(strings["pdf_total"],     str(total_faces))
+    row2(strings["pdf_consented"], str(consented))
+    row2(strings["pdf_blurred"],   str(blurred_total))
+    if tally["blurred"]:
+        breakdown = ", ".join(f"{c} {s}" for s, c in sorted(tally["blurred"].items()) if c)
+        row2(strings["pdf_breakdown"], breakdown)
+    row2(strings["pdf_skipped"], str(skipped))
+    pdf.ln(2)
+
+    # ── Per-face table — columns sum exactly to W ────────────────────────────
     if face_details:
-        col_w = [10, 30, 35, 50]   # index | outcome | style | colour
-        headers = ["#", "Outcome", "Blur style", "Clothing colour"]
+        c0 = 8; c1 = 30; c2 = 32; c4 = 28; c3 = W - c0 - c1 - c2 - c4
+        col_w   = [c0, c1, c2, c3, c4]
+        headers = [
+            strings["pdf_col_idx"],
+            strings["pdf_col_outcome"],
+            strings["pdf_col_style"],
+            strings["pdf_col_colour"],
+            strings["pdf_col_consent"],
+        ]
         pdf.set_font("Segoe", "B", 10)
         pdf.set_fill_color(215, 225, 245)
         pdf.set_text_color(20, 40, 80)
@@ -979,78 +1455,179 @@ def generate_pdf_report(
         pdf.set_text_color(40, 40, 40)
         for row in face_details:
             pdf.set_fill_color(248, 250, 255)
+            secs = row.get("consent_secs")
+            if secs is None:
+                consent_cell = "-"
+            elif secs == 0:
+                consent_cell = strings["pdf_expired"]
+            else:
+                consent_cell = f"{secs}s"
             pdf.cell(col_w[0], 7, str(row["index"]), border=1, fill=True)
             pdf.cell(col_w[1], 7, row["outcome"],    border=1, fill=True)
             pdf.cell(col_w[2], 7, row["style"],      border=1, fill=True)
             pdf.cell(col_w[3], 7, row["colour"],     border=1, fill=True)
+            pdf.cell(col_w[4], 7, consent_cell,      border=1, fill=True)
             pdf.ln()
-    pdf.ln(3)
+    pdf.ln(2)
 
     # ── Section 3: Safe Content Score ────────────────────────────────────────
-    h2("3. Safe Content Score")
-    # Large score display
-    pdf.set_font("Segoe", "B", 38)
+    h2(strings["pdf_s3_title"])
+    pdf.set_font("Segoe", "B", 28)
     pdf.set_text_color(*risk_colour)
-    pdf.cell(W, 14, f"{score}/100", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.multi_cell(W, 10, f"{score}/100", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("Segoe", "B", 13)
-    pdf.cell(W, 8, risk_label.upper(), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.set_font("Segoe", "", 12)
-    # Strip leading emoji glyph (outside Segoe UI's range) — keep the label text.
+    pdf.multi_cell(W, 7, risk_label.upper(), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.set_font("Segoe", "", 11)
+    # Strip leading emoji glyph (outside Segoe UI's range)
     badge = badge_label(score)
     badge_text = badge.split(" ", 1)[1] if badge[0] not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" else badge
-    pdf.cell(W, 8, badge_text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.multi_cell(W, 7, badge_text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_text_color(40, 40, 40)
     pdf.set_font("Segoe", "", 10)
-    pdf.multi_cell(W, 6,
-        "Score formula: 100 x (consented + blurred) / total faces detected.\n"
-        "100 = fully compliant. Each face left without consent or blur reduces the score.",
-        new_x=XPos.LMARGIN, new_y=YPos.NEXT)
-    pdf.ln(3)
+    pdf.multi_cell(W, 6, strings["pdf_score_formula"],
+                   new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.ln(2)
 
     # ── Section 4: Recommendations ───────────────────────────────────────────
-    h2("4. Recommendations")
+    h2(strings["pdf_s4_title"])
     recs: list[str] = []
     if skipped > 0:
-        recs.append(
-            f"{skipped} face(s) were left without consent or blur. "
-            "Review these before publishing to avoid privacy violations."
-        )
+        recs.append(strings["pdf_rec_skipped"].format(n=skipped))
     if ai_flag:
-        recs.append(
-            "AI-generated content was detected. Under the EU AI Act, "
-            "clearly label this content as AI-generated in all publications."
-        )
+        recs.append(strings["pdf_rec_ai"])
     if score < 80:
-        recs.append(
-            "Safe Content Score is below 80. Obtain explicit consent or "
-            "apply privacy blur to all unprocessed faces before sharing."
-        )
+        recs.append(strings["pdf_rec_score"])
     if not recs:
-        recs.append(
-            "All faces have been consented or properly anonymised. "
-            "This image appears compliant for sharing."
-        )
+        recs.append(strings["pdf_rec_ok"])
     for rec in recs:
         pdf.set_font("Segoe", "B", 11)
         pdf.set_text_color(20, 40, 80)
-        pdf.cell(6, 7, "\u2022")          # bullet
+        pdf.cell(6, 7, "\u2022")
         pdf.set_font("Segoe", "", 11)
         pdf.set_text_color(40, 40, 40)
-        pdf.multi_cell(W - 6, 7, rec,
-                       new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.multi_cell(W - 6, 7, rec, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(1)
-    pdf.ln(2)
+    pdf.ln(1)
 
     # ── Footer ───────────────────────────────────────────────────────────────
     rule()
     pdf.set_font("Segoe", "", 9)
     pdf.set_text_color(150, 150, 150)
-    pdf.cell(W, 6,
-             f"ConsentAI  |  Report generated {now}  |  Output: {Path(output_image_path).name}",
-             new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.multi_cell(W, 6,
+                   strings["pdf_footer"].format(
+                       now=now, name=Path(output_image_path).name),
+                   new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
-    pdf.output(report_path)
+    # Write the PDF — if the file is open in a viewer (locked), fall back to a
+    # timestamped name so the run is never lost.
+    try:
+        pdf.output(report_path)
+    except PermissionError:
+        ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        report_path = report_path.replace("_report.pdf", f"_report_{ts}.pdf")
+        pdf.output(report_path)
     return report_path
+
+
+# ---------------------------------------------------------------------------
+# Consent expiry watcher
+# ---------------------------------------------------------------------------
+
+def _render_expired_image(
+    image_path: str,
+    output_path: str,
+    faces: list,
+    face_details: list[dict],
+    expired_indices: set[int],
+    ai_flag: bool,
+    strings: dict,
+) -> None:
+    """Re-render the output image with newly-expired faces blurred.
+
+    Reloads the original source image and re-applies every face decision,
+    replacing any consent badge that has now expired with a square blur.
+    ``expired_indices`` is the *cumulative* set of face indices (1-based)
+    whose consent has lapsed so far.
+    """
+    img = cv2.imread(image_path)
+    if img is None:
+        return
+
+    for detail in face_details:
+        i   = detail["index"]
+        x, y, w, h = faces[i - 1]          # faces list is 0-based
+
+        if detail["outcome"] == "consented":
+            if i in expired_indices:
+                # Timer has fired for this face — blur it now
+                blur_face_square(img, x, y, w, h)
+            else:
+                # Still active — redraw box and live badge with remaining time
+                secs_remaining = detail["consent_secs"] - int(time.time() - detail["_granted_at"])
+                secs_remaining = max(1, secs_remaining)   # clamp: don't show 0 on a live face
+                cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                label = f"face {i}" if len(faces) > 1 else "face"
+                cv2.putText(img, label, (x, y - 8), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.55, (0, 255, 0), 1, cv2.LINE_AA)
+                draw_consent_timer(img, x, y, w, h, secs_remaining, strings)
+
+        elif detail["outcome"] == "blurred":
+            style = detail["style"]
+            if style == "oval":
+                blur_face_oval(img, x, y, w, h)
+            elif style == "strong":
+                blur_face_strong(img, x, y, w, h)
+            elif style == "silhouette":
+                blur_face_silhouette(img, x, y, w, h)
+            elif style.startswith("emoji:"):
+                # emoji char stored separately — fall back to square on re-render
+                blur_face_square(img, x, y, w, h)
+            else:
+                blur_face_square(img, x, y, w, h)
+
+        # outcome == "skipped": leave the face untouched
+
+    if ai_flag:
+        stamp_ai_watermark(img, strings)
+
+    cv2.imwrite(output_path, img)
+
+
+def expiry_watcher(
+    image_path: str,
+    output_path: str,
+    faces: list,
+    face_details: list[dict],
+    ai_flag: bool,
+    strings: dict,
+) -> None:
+    """Block until all consent timers have fired, re-rendering the image each time.
+
+    Called in a background thread by detect_faces whenever at least one face
+    has an active consent duration.  Each consented face gets its own timer;
+    when it fires the image is re-saved with that face now blurred.
+    """
+    # Only track faces with an active (> 0) consent timer
+    pending = [d for d in face_details if d.get("consent_secs") and d["consent_secs"] > 0]
+    if not pending:
+        return
+
+    expired_indices: set[int] = set()
+    # Sort by duration so shortest fires first
+    pending.sort(key=lambda d: d["consent_secs"])
+
+    for detail in pending:
+        target_time = detail["_granted_at"] + detail["consent_secs"]
+        wait = target_time - time.time()
+        if wait > 0:
+            time.sleep(wait)
+        expired_indices.add(detail["index"])
+        _render_expired_image(
+            image_path, output_path, faces, face_details, expired_indices, ai_flag, strings
+        )
+        print(strings["expiry_fired"].format(i=detail["index"]))
+
+    print(strings["expiry_all_done"])
 
 
 def detect_faces(image_path: str, output_path: str, scale_factor: float,
@@ -1103,6 +1680,18 @@ def detect_faces(image_path: str, output_path: str, scale_factor: float,
         image_path, output_path, tally, ai_flag, scene, strings, face_details
     )
     print(f"  Report saved to: {report_path}")
+
+    # ── Launch expiry watcher if any consented faces have a live timer ────────
+    active_timers = [d for d in face_details if d.get("consent_secs") and d["consent_secs"] > 0]
+    if active_timers:
+        print(strings["expiry_watching"])
+        watcher = threading.Thread(
+            target=expiry_watcher,
+            args=(image_path, output_path, faces, face_details, ai_flag, strings),
+            daemon=False,   # keep process alive until all timers fire
+        )
+        watcher.start()
+        watcher.join()   # block main thread so the script stays alive
 
     return face_count
 
