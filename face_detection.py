@@ -26,6 +26,7 @@ if isinstance(sys.stdin, io.TextIOWrapper):
     sys.stdin.reconfigure(encoding="utf-8")
 
 import datetime
+import os
 import threading
 import time
 
@@ -123,6 +124,7 @@ TRANSLATIONS: dict[str, dict] = {
         "pdf_rec_ok":         "All faces have been consented or properly anonymised. "
                               "This image appears compliant for sharing.",
         "pdf_footer":         "Compliact  |  Report generated {now}  |  Output: {name}",
+        "save_error":    "  [error] Failed to write image to: {path}",
         "yes_answers":   ("yes", "y"),
         "no_answers":    ("no", "n"),
         "colours": {
@@ -203,6 +205,7 @@ TRANSLATIONS: dict[str, dict] = {
         "pdf_rec_ok":         "Tous les visages ont été consentis ou correctement anonymisés. "
                               "Cette image semble conforme pour publication.",
         "pdf_footer":         "Compliact  |  Rapport généré le {now}  |  Sortie : {name}",
+        "save_error":    "  [erreur] Impossible d'écrire l'image dans : {path}",
         "yes_answers":   ("oui", "o", "yes", "y"),
         "no_answers":    ("non", "n", "no"),
         "colours": {
@@ -283,6 +286,7 @@ TRANSLATIONS: dict[str, dict] = {
         "pdf_rec_ok":         "Todas las caras han sido consentidas o correctamente anonimizadas. "
                               "Esta imagen parece conforme para publicar.",
         "pdf_footer":         "Compliact  |  Informe generado el {now}  |  Salida: {name}",
+        "save_error":    "  [error] No se pudo escribir la imagen en: {path}",
         "yes_answers":   ("sí", "si", "s", "yes", "y"),
         "no_answers":    ("no", "n"),
         "colours": {
@@ -363,6 +367,7 @@ TRANSLATIONS: dict[str, dict] = {
         "pdf_rec_ok":         "تمت الموافقة على جميع الوجوه أو إخفاء هويتها بشكل صحيح. "
                               "تبدو هذه الصورة متوافقة للنشر.",
         "pdf_footer":         "Compliact  |  تم إنشاء التقرير: {now}  |  المخرج: {name}",
+        "save_error":    "  [خطأ] تعذّر كتابة الصورة إلى: {path}",
         "yes_answers":   ("نعم", "yes", "y"),
         "no_answers":    ("لا", "no", "n"),
         "colours": {
@@ -443,6 +448,7 @@ TRANSLATIONS: dict[str, dict] = {
         "pdf_rec_ok":         "Todos os rostos foram consentidos ou devidamente anonimizados. "
                               "Esta imagem parece estar em conformidade para publicação.",
         "pdf_footer":         "Compliact  |  Relatório gerado em {now}  |  Saída: {name}",
+        "save_error":    "  [erro] Falha ao gravar imagem em: {path}",
         "yes_answers":   ("sim", "s", "yes", "y"),
         "no_answers":    ("não", "nao", "n", "no"),
         "colours": {
@@ -523,6 +529,7 @@ TRANSLATIONS: dict[str, dict] = {
         "pdf_rec_ok":         "Alle Gesichter wurden zugestimmt oder ordnungsgemäß anonymisiert. "
                               "Dieses Bild scheint konform zum Teilen.",
         "pdf_footer":         "Compliact  |  Bericht erstellt am {now}  |  Ausgabe: {name}",
+        "save_error":    "  [Fehler] Bild konnte nicht geschrieben werden nach: {path}",
         "yes_answers":   ("ja", "j", "yes", "y"),
         "no_answers":    ("nein", "n", "no"),
         "colours": {
@@ -603,6 +610,7 @@ TRANSLATIONS: dict[str, dict] = {
         "pdf_rec_ok":         "تمام چہروں کی رضامندی حاصل کر لی گئی یا انہیں مناسب طریقے سے گمنام کر دیا گیا۔ "
                               "یہ تصویر اشاعت کے لیے تعمیل کے مطابق دکھتی ہے۔",
         "pdf_footer":         "Compliact  |  رپورٹ تیار کردہ {now}  |  آؤٹ پٹ: {name}",
+        "save_error":    "  [خرابی] تصویر یہاں محفوظ نہیں ہو سکی: {path}",
         "yes_answers":   ("ہاں", "h", "yes", "y"),
         "no_answers":    ("نہیں", "n", "no"),
         "colours": {
@@ -669,7 +677,8 @@ def parse_args() -> argparse.Namespace:
 
 
 def build_output_path(input_path: Path) -> Path:
-    return input_path.with_name(f"{input_path.stem}_detected{input_path.suffix}")
+    ts = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    return input_path.with_name(f"{input_path.stem}_detected_{ts}{input_path.suffix}")
 
 
 # ---------------------------------------------------------------------------
@@ -865,7 +874,7 @@ def blur_face_square(image, x: int, y: int, w: int, h: int) -> None:
         return
 
     # 3. Calculate grid size based on actual width/height
-    grid: int = max(2, min(actual_w, actual_h) // 8)
+    grid: int = max(2, min(actual_w, actual_h) // 16)
 
     # 4. Downsample to pixelate
     small = cv2.resize(face_roi, (grid, grid), interpolation=cv2.INTER_LINEAR)
@@ -1193,6 +1202,7 @@ def run_consent_flow(image, faces, strings: dict) -> tuple[dict, list[dict]]:
                 face_details.append({
                     "index": i, "outcome": "blurred", "style": "square",
                     "colour": colour, "consent_secs": 0, "_granted_at": granted_at,
+                    "bbox": (x, y, w, h),
                 })
             else:
                 # Consent is active — mark face and stamp countdown badge
@@ -1206,6 +1216,7 @@ def run_consent_flow(image, faces, strings: dict) -> tuple[dict, list[dict]]:
                 face_details.append({
                     "index": i, "outcome": "consented", "style": "-",
                     "colour": colour, "consent_secs": consent_secs, "_granted_at": granted_at,
+                    "bbox": (x, y, w, h),
                 })
         else:
             should_blur = ask_yes_no(strings["blur_q"], strings)
@@ -1228,6 +1239,7 @@ def run_consent_flow(image, faces, strings: dict) -> tuple[dict, list[dict]]:
                 face_details.append({
                     "index": i, "outcome": "blurred", "style": style,
                     "colour": colour, "consent_secs": None,
+                    "bbox": (x, y, w, h),
                 })
             else:
                 print(strings["blur_no"].format(i=i))
@@ -1235,6 +1247,7 @@ def run_consent_flow(image, faces, strings: dict) -> tuple[dict, list[dict]]:
                 face_details.append({
                     "index": i, "outcome": "skipped", "style": "-",
                     "colour": colour, "consent_secs": None,
+                    "bbox": (x, y, w, h),
                 })
     return tally, face_details
 
@@ -1555,7 +1568,7 @@ def _render_expired_image(
 
     for detail in face_details:
         i   = detail["index"]
-        x, y, w, h = faces[i - 1]          # faces list is 0-based
+        x, y, w, h = detail["bbox"]
 
         if detail["outcome"] == "consented":
             if i in expired_indices:
@@ -1590,7 +1603,10 @@ def _render_expired_image(
     if ai_flag:
         stamp_ai_watermark(img, strings)
 
-    cv2.imwrite(output_path, img)
+    if os.path.exists(output_path):
+        os.remove(output_path)
+    if not cv2.imwrite(output_path, img):
+        print(strings["save_error"].format(path=output_path))
 
 
 def expiry_watcher(
@@ -1674,6 +1690,8 @@ def detect_faces(image_path: str, output_path: str, scale_factor: float,
         stamp_ai_watermark(image, strings)
 
     print_summary(tally, strings, ai_flag, scene)
+    if os.path.exists(output_path):
+        os.remove(output_path)
     cv2.imwrite(output_path, image)
 
     report_path = generate_pdf_report(
