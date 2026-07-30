@@ -964,7 +964,9 @@ def _ellipse_mask(h: int, w: int) -> np.ndarray:
 def blur_face_oval(image, x: int, y: int, w: int, h: int) -> None:
     """Pixelate only inside an ellipse fitted to the face bbox."""
     face_roi = image[y:y + h, x:x + w].copy()
-    small = cv2.resize(face_roi, (10, 10), interpolation=cv2.INTER_LINEAR)
+    actual_h, actual_w = face_roi.shape[:2]
+    grid: int = max(4, min(actual_w, actual_h) // 16)
+    small = cv2.resize(face_roi, (grid, grid), interpolation=cv2.INTER_LINEAR)
     pixelated = cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
     mask_3ch = _ellipse_mask(h, w)[:, :, np.newaxis]
     image[y:y + h, x:x + w] = np.where(mask_3ch == 255, pixelated, face_roi)
@@ -975,12 +977,16 @@ def blur_face_strong(image, x: int, y: int, w: int, h: int) -> None:
     if w <= 0 or h <= 0:
         return
     face_roi = image[y:y + h, x:x + w]
-    # Kernel must be odd and smaller than the ROI dimensions
-    ksize = min(w if w % 2 == 1 else w - 1, h if h % 2 == 1 else h - 1, 99)
-    ksize = max(ksize, 3)
+    # Kernel must be odd; cap at 199 to stay effective on large faces.
+    # Use at least 1/3 of the shorter side so small faces are still strongly blurred.
+    short = min(w, h)
+    ksize = max(short // 3, 15)
+    if ksize % 2 == 0:
+        ksize += 1
+    ksize = min(ksize, 199)
     blurred = face_roi
-    for _ in range(3):
-        blurred = cv2.GaussianBlur(blurred, (ksize, ksize), sigmaX=30)
+    for _ in range(5):
+        blurred = cv2.GaussianBlur(blurred, (ksize, ksize), sigmaX=60)
     image[y:y + h, x:x + w] = blurred
 
 
