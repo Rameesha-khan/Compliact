@@ -1790,7 +1790,8 @@ def detect_faces(image_path: str, output_path: str, scale_factor: float,
     print_summary(tally, strings, ai_flag, scene)
     if os.path.exists(output_path):
         os.remove(output_path)
-    cv2.imwrite(output_path, image)
+    if not cv2.imwrite(output_path, image):
+        print(strings["save_error"].format(path=output_path))
 
     report_path = generate_pdf_report(
         image_path, output_path, tally, ai_flag, scene, strings, face_details
