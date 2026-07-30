@@ -1301,6 +1301,7 @@ def run_consent_flow(image, faces, strings: dict) -> tuple[dict, list[dict]]:
             should_blur = ask_yes_no(strings["blur_q"], strings)
             if should_blur:
                 style = ask_blur_style(strings)
+                print(f"[DEBUG] blur dispatch: x={x} y={y} w={w} h={h} image.shape={image.shape}")
                 if style == "oval":
                     blur_face_oval(image, x, y, w, h)
                 elif style == "strong":
