@@ -974,7 +974,7 @@ def blur_face_square(image, x: int, y: int, w: int, h: int) -> None:
         return
 
     # 3. Calculate grid size based on actual width/height
-    grid: int = max(2, min(actual_w, actual_h) // 24)
+    grid: int = max(6, min(actual_w, actual_h) // 32)
 
     # 4. Downsample to pixelate
     small = cv2.resize(face_roi, (grid, grid), interpolation=cv2.INTER_LINEAR)
@@ -1002,7 +1002,7 @@ def blur_face_oval(image, x: int, y: int, w: int, h: int) -> None:
     """Pixelate only inside an ellipse fitted to the face bbox."""
     face_roi = image[y:y + h, x:x + w].copy()
     actual_h, actual_w = face_roi.shape[:2]
-    grid: int = max(4, min(actual_w, actual_h) // 24)
+    grid: int = max(6, min(actual_w, actual_h) // 32)
     small = cv2.resize(face_roi, (grid, grid), interpolation=cv2.INTER_LINEAR)
     pixelated = cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
     mask_3ch = _ellipse_mask(h, w)[:, :, np.newaxis]
