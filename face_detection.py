@@ -73,6 +73,15 @@ TRANSLATIONS: dict[str, dict] = {
         "expiry_watching":   "\nWatching for consent expiry — image will update automatically.",
         "expiry_fired":      "  [timer] Consent for face {i} expired — face blurred and image re-saved.",
         "expiry_all_done":   "  [timer] All consent timers have fired. Final image saved.",
+        "badge_100":     "🏆 Perfect Privacy Badge — fully compliant!",
+        "badge_80":      "✅ Safe Creator Badge — great job!",
+        "badge_50":      "⚠️ Needs Review — some faces unaddressed.",
+        "badge_low":     "🔴 High Risk — not safe to share yet.",
+        "style_square":  "square",
+        "style_oval":    "oval",
+        "style_strong":  "strong",
+        "style_silhouette": "silhouette",
+        "style_emoji":   "emoji",
         "blur_q":        "  No problem. Would you like to blur that face instead? (yes/no): ",
         "blur_no":       "  Okay — face {i} left as-is.",
         "blur_done":     "  Face {i} blurred ({style}).",
@@ -154,6 +163,15 @@ TRANSLATIONS: dict[str, dict] = {
         "expiry_watching":   "\nSurveillance des expirations de consentement — l'image se mettra à jour automatiquement.",
         "expiry_fired":      "  [minuterie] Le consentement pour le visage {i} a expiré — flouté et image ré-enregistrée.",
         "expiry_all_done":   "  [minuterie] Toutes les minuteries ont expiré. Image finale enregistrée.",
+        "badge_100":     "🏆 Badge Confidentialité Parfaite — entièrement conforme !",
+        "badge_80":      "✅ Badge Créateur Responsable — bon travail !",
+        "badge_50":      "⚠️ À vérifier — certains visages non traités.",
+        "badge_low":     "🔴 Risque élevé — pas encore prêt à partager.",
+        "style_square":  "carré",
+        "style_oval":    "ovale",
+        "style_strong":  "fort",
+        "style_silhouette": "silhouette",
+        "style_emoji":   "emoji",
         "blur_q":        "  Pas de souci. Voulez-vous flouter ce visage à la place ? (oui/non) : ",
         "blur_no":       "  D'accord — visage {i} laissé tel quel.",
         "blur_done":     "  Visage {i} flouté ({style}).",
@@ -235,6 +253,15 @@ TRANSLATIONS: dict[str, dict] = {
         "expiry_watching":   "\nEsperando expiración de consentimientos — la imagen se actualizará automáticamente.",
         "expiry_fired":      "  [temporizador] El consentimiento de la cara {i} expiró — difuminada y guardada.",
         "expiry_all_done":   "  [temporizador] Todos los temporizadores han expirado. Imagen final guardada.",
+        "badge_100":     "🏆 Insignia de Privacidad Perfecta — ¡totalmente conforme!",
+        "badge_80":      "✅ Insignia de Creador Seguro — ¡buen trabajo!",
+        "badge_50":      "⚠️ Necesita revisión — algunas caras sin tratar.",
+        "badge_low":     "🔴 Alto riesgo — aún no es seguro compartir.",
+        "style_square":  "cuadrado",
+        "style_oval":    "oval",
+        "style_strong":  "intenso",
+        "style_silhouette": "silueta",
+        "style_emoji":   "emoji",
         "blur_q":        "  Sin problema. ¿Quieres difuminar esa cara en su lugar? (sí/no): ",
         "blur_no":       "  De acuerdo — cara {i} sin cambios.",
         "blur_done":     "  Cara {i} difuminada ({style}).",
@@ -316,6 +343,15 @@ TRANSLATIONS: dict[str, dict] = {
         "expiry_watching":   "\nمراقبة انتهاء صلاحية الموافقات — سيتم تحديث الصورة تلقائياً.",
         "expiry_fired":      "  [مؤقت] انتهت موافقة الوجه {i} — تم التمويه وإعادة الحفظ.",
         "expiry_all_done":   "  [مؤقت] انتهت جميع المؤقتات. تم حفظ الصورة النهائية.",
+        "badge_100":     "🏆 شارة الخصوصية المثالية — ملتزم تمامًا!",
+        "badge_80":      "✅ شارة المبدع الآمن — عمل رائع!",
+        "badge_50":      "⚠️ يحتاج مراجعة — بعض الوجوه لم تُعالج.",
+        "badge_low":     "🔴 خطر مرتفع — غير آمن للمشاركة بعد.",
+        "style_square":  "مربع",
+        "style_oval":    "بيضاوي",
+        "style_strong":  "قوي",
+        "style_silhouette": "صورة ظلية",
+        "style_emoji":   "إيموجي",
         "blur_q":        "  لا مشكلة. هل تريد تمويه هذا الوجه بدلاً من ذلك؟ (نعم/لا): ",
         "blur_no":       "  حسناً — الوجه {i} سيبقى كما هو.",
         "blur_done":     "  تم تمويه الوجه {i} ({style}).",
@@ -397,6 +433,15 @@ TRANSLATIONS: dict[str, dict] = {
         "expiry_watching":   "\nAguardando expiração dos consentimentos — a imagem será atualizada automaticamente.",
         "expiry_fired":      "  [temporizador] O consentimento do rosto {i} expirou — desfocado e imagem re-salva.",
         "expiry_all_done":   "  [temporizador] Todos os temporizadores dispararam. Imagem final salva.",
+        "badge_100":     "🏆 Selo de Privacidade Perfeita — totalmente conforme!",
+        "badge_80":      "✅ Selo de Criador Seguro — bom trabalho!",
+        "badge_50":      "⚠️ Necessita revisão — alguns rostos não tratados.",
+        "badge_low":     "🔴 Alto risco — ainda não é seguro partilhar.",
+        "style_square":  "quadrado",
+        "style_oval":    "oval",
+        "style_strong":  "forte",
+        "style_silhouette": "silhueta",
+        "style_emoji":   "emoji",
         "blur_q":        "  Sem problema. Quer desfocar esse rosto? (sim/não): ",
         "blur_no":       "  Ok — rosto {i} mantido como está.",
         "blur_done":     "  Rosto {i} desfocado ({style}).",
@@ -478,6 +523,15 @@ TRANSLATIONS: dict[str, dict] = {
         "expiry_watching":   "\nWarte auf Ablauf der Einverständnisse — Bild wird automatisch aktualisiert.",
         "expiry_fired":      "  [Timer] Einverständnis für Gesicht {i} abgelaufen — unkenntlich gemacht und Bild neu gespeichert.",
         "expiry_all_done":   "  [Timer] Alle Timer abgelaufen. Finales Bild gespeichert.",
+        "badge_100":     "🏆 Perfektes Datenschutz-Abzeichen — vollständig konform!",
+        "badge_80":      "✅ Sicherer Ersteller-Abzeichen — gute Arbeit!",
+        "badge_50":      "⚠️ Überprüfung erforderlich — einige Gesichter unbehandelt.",
+        "badge_low":     "🔴 Hohes Risiko — noch nicht sicher zum Teilen.",
+        "style_square":  "quadrat",
+        "style_oval":    "oval",
+        "style_strong":  "stark",
+        "style_silhouette": "silhouette",
+        "style_emoji":   "emoji",
         "blur_q":        "  Kein Problem. Soll das Gesicht stattdessen unkenntlich gemacht werden? (ja/nein): ",
         "blur_no":       "  Okay — Gesicht {i} bleibt unverändert.",
         "blur_done":     "  Gesicht {i} unkenntlich gemacht ({style}).",
@@ -559,6 +613,15 @@ TRANSLATIONS: dict[str, dict] = {
         "expiry_watching":   "\nرضامندیوں کی میعاد ختم ہونے کا انتظار — تصویر خود بخود اپڈیٹ ہو گی۔",
         "expiry_fired":      "  [ٹائمر] چہرہ {i} کی رضامندی ختم — دھندلا کر کے دوبارہ محفوظ کیا گیا۔",
         "expiry_all_done":   "  [ٹائمر] تمام ٹائمر ختم ہو گئے۔ آخری تصویر محفوظ۔",
+        "badge_100":     "🏆 کامل رازداری بیج — مکمل طور پر موافق!",
+        "badge_80":      "✅ محفوظ تخلیق کار بیج — بہت اچھا!",
+        "badge_50":      "⚠️ جائزہ درکار — کچھ چہرے غیر حل شدہ۔",
+        "badge_low":     "🔴 زیادہ خطرہ — ابھی شیئر کرنا محفوظ نہیں۔",
+        "style_square":  "مربع",
+        "style_oval":    "بیضوی",
+        "style_strong":  "مضبوط",
+        "style_silhouette": "خاکہ",
+        "style_emoji":   "ایموجی",
         "blur_q":        "  کوئی بات نہیں۔ کیا آپ اس کی بجائے یہ چہرہ دھندلا کرنا چاہیں گے؟ (ہاں/نہیں): ",
         "blur_no":       "  ٹھیک ہے — چہرہ {i} جوں کا توں چھوڑ دیا گیا۔",
         "blur_done":     "  چہرہ {i} دھندلا کر دیا گیا ({style})۔",
@@ -1108,15 +1171,30 @@ def safe_content_score(tally: dict) -> int:
     return round(100 * compliant / total)
 
 
-def badge_label(score: int) -> str:
+def translate_style(style_key: str, strings: dict) -> str:
+    """Return the localised display name for a blur style key.
+
+    For standard keys ("square", "oval", "strong", "silhouette") the matching
+    strings["style_*"] translation is returned.  For "emoji:name" keys the
+    emoji name suffix is preserved and prepended with the localised "emoji" word.
+    Falls back to the raw key if no mapping exists.
+    """
+    if style_key.startswith("emoji:"):
+        emoji_name = style_key.split(":", 1)[1]
+        return f"{strings.get('style_emoji', 'emoji')}:{emoji_name}"
+    key = f"style_{style_key}"
+    return strings.get(key, style_key)
+
+
+def badge_label(score: int, strings: dict) -> str:
     """Return the gamification badge string for a given score."""
     if score == 100:
-        return "\U0001f3c6 Perfect Privacy Badge — fully compliant!"
+        return strings["badge_100"]
     if score >= 80:
-        return "\u2705 Safe Creator Badge — great job!"
+        return strings["badge_80"]
     if score >= 50:
-        return "\u26a0\ufe0f Needs Review — some faces unaddressed."
-    return "\U0001f534 High Risk — not safe to share yet."
+        return strings["badge_50"]
+    return strings["badge_low"]
 
 
 # ---------------------------------------------------------------------------
@@ -1127,7 +1205,8 @@ def print_summary(tally: dict, strings: dict, ai_flag: bool, scene: str) -> None
     """Print the full end-of-run summary in the selected language."""
     blurred_total = sum(tally["blurred"].values())
     blur_breakdown = ", ".join(
-        f"{count} {style}" for style, count in sorted(tally["blurred"].items()) if count
+        f"{count} {translate_style(style, strings)}"
+        for style, count in sorted(tally["blurred"].items()) if count
     ) or "0"
     print(strings["summary"].format(
         total=tally["consented"] + blurred_total + tally["skipped"],
@@ -1150,7 +1229,7 @@ def print_summary(tally: dict, strings: dict, ai_flag: bool, scene: str) -> None
     else:
         risk = strings["score_high"]
     print(strings["score_line"].format(score=score, risk=risk))
-    print(badge_label(score))
+    print(badge_label(score, strings))
 
 
 def run_consent_flow(image, faces, strings: dict) -> tuple[dict, list[dict]]:
@@ -1234,7 +1313,7 @@ def run_consent_flow(image, faces, strings: dict) -> tuple[dict, list[dict]]:
                     style = f"emoji:{emoji_name}"  # enrich for tally/PDF
                 else:
                     blur_face_square(image, x, y, w, h)
-                print(strings["blur_done"].format(i=i, style=style))
+                print(strings["blur_done"].format(i=i, style=translate_style(style, strings)))
                 tally["blurred"][style] = tally["blurred"].get(style, 0) + 1
                 face_details.append({
                     "index": i, "outcome": "blurred", "style": style,
@@ -1442,7 +1521,9 @@ def generate_pdf_report(
     row2(strings["pdf_consented"], str(consented))
     row2(strings["pdf_blurred"],   str(blurred_total))
     if tally["blurred"]:
-        breakdown = ", ".join(f"{c} {s}" for s, c in sorted(tally["blurred"].items()) if c)
+        breakdown = ", ".join(
+            f"{c} {translate_style(s, strings)}" for s, c in sorted(tally["blurred"].items()) if c
+        )
         row2(strings["pdf_breakdown"], breakdown)
     row2(strings["pdf_skipped"], str(skipped))
     pdf.ln(2)
@@ -1477,7 +1558,7 @@ def generate_pdf_report(
                 consent_cell = f"{secs}s"
             pdf.cell(col_w[0], 7, str(row["index"]), border=1, fill=True)
             pdf.cell(col_w[1], 7, row["outcome"],    border=1, fill=True)
-            pdf.cell(col_w[2], 7, row["style"],      border=1, fill=True)
+            pdf.cell(col_w[2], 7, translate_style(row["style"], strings), border=1, fill=True)
             pdf.cell(col_w[3], 7, row["colour"],     border=1, fill=True)
             pdf.cell(col_w[4], 7, consent_cell,      border=1, fill=True)
             pdf.ln()
@@ -1492,7 +1573,7 @@ def generate_pdf_report(
     pdf.multi_cell(W, 7, risk_label.upper(), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("Segoe", "", 11)
     # Strip leading emoji glyph (outside Segoe UI's range)
-    badge = badge_label(score)
+    badge = badge_label(score, strings)
     badge_text = badge.split(" ", 1)[1] if badge[0] not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" else badge
     pdf.multi_cell(W, 7, badge_text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_text_color(40, 40, 40)
@@ -1614,7 +1695,9 @@ def expiry_watcher(
     output_path: str,
     faces: list,
     face_details: list[dict],
+    tally: dict,
     ai_flag: bool,
+    scene: str,
     strings: dict,
 ) -> None:
     """Block until all consent timers have fired, re-rendering the image each time.
@@ -1644,6 +1727,20 @@ def expiry_watcher(
         print(strings["expiry_fired"].format(i=detail["index"]))
 
     print(strings["expiry_all_done"])
+
+    # Update face_details and tally to reflect all expired consents → blurred
+    for detail in pending:
+        detail["outcome"] = "blurred"
+        detail["style"]   = "square"
+        tally["consented"] -= 1
+        tally["blurred"]["square"] = tally["blurred"].get("square", 0) + 1
+
+    # Regenerate the PDF report in-place with the updated outcomes
+    report_path = str(Path(output_path).with_suffix("")) + "_report.pdf"
+    generate_pdf_report(
+        image_path, output_path, tally, ai_flag, scene, strings, face_details
+    )
+    print(f"  Report updated: {report_path}")
 
 
 def detect_faces(image_path: str, output_path: str, scale_factor: float,
@@ -1705,7 +1802,7 @@ def detect_faces(image_path: str, output_path: str, scale_factor: float,
         print(strings["expiry_watching"])
         watcher = threading.Thread(
             target=expiry_watcher,
-            args=(image_path, output_path, faces, face_details, ai_flag, strings),
+            args=(image_path, output_path, faces, face_details, tally, ai_flag, scene, strings),
             daemon=False,   # keep process alive until all timers fire
         )
         watcher.start()

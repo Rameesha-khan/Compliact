@@ -6,3 +6,5 @@ group_photo_detected_20*.jpg
 group_photo_detected_20*_report.pdf
 group_photo_detected_report_20*.pdf
 ~$*
+test_photo_detected_20*.jpg
+test_photo_detected_20*_report.pdf
