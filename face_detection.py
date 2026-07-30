@@ -134,6 +134,7 @@ TRANSLATIONS: dict[str, dict] = {
                               "This image appears compliant for sharing.",
         "pdf_footer":         "Compliact  |  Report generated {now}  |  Output: {name}",
         "save_error":    "  [error] Failed to write image to: {path}",
+        "load_error":    "Error: could not load '{path}'. The file may be corrupted or in an unsupported format. Supported formats: JPG, PNG, BMP, WEBP, TIFF.",
         "yes_answers":   ("yes", "y"),
         "no_answers":    ("no", "n"),
         "colours": {
@@ -225,6 +226,7 @@ TRANSLATIONS: dict[str, dict] = {
                               "Cette image semble conforme pour publication.",
         "pdf_footer":         "Compliact  |  Rapport généré le {now}  |  Sortie : {name}",
         "save_error":    "  [erreur] Impossible d'écrire l'image dans : {path}",
+        "load_error":    "Erreur : impossible de charger '{path}'. Le fichier est peut-être corrompu ou dans un format non pris en charge. Formats pris en charge : JPG, PNG, BMP, WEBP, TIFF.",
         "yes_answers":   ("oui", "o", "yes", "y"),
         "no_answers":    ("non", "n", "no"),
         "colours": {
@@ -316,6 +318,7 @@ TRANSLATIONS: dict[str, dict] = {
                               "Esta imagen parece conforme para publicar.",
         "pdf_footer":         "Compliact  |  Informe generado el {now}  |  Salida: {name}",
         "save_error":    "  [error] No se pudo escribir la imagen en: {path}",
+        "load_error":    "Error: no se pudo cargar '{path}'. El archivo puede estar dañado o en un formato no compatible. Formatos admitidos: JPG, PNG, BMP, WEBP, TIFF.",
         "yes_answers":   ("sí", "si", "s", "yes", "y"),
         "no_answers":    ("no", "n"),
         "colours": {
@@ -407,6 +410,7 @@ TRANSLATIONS: dict[str, dict] = {
                               "تبدو هذه الصورة متوافقة للنشر.",
         "pdf_footer":         "Compliact  |  تم إنشاء التقرير: {now}  |  المخرج: {name}",
         "save_error":    "  [خطأ] تعذّر كتابة الصورة إلى: {path}",
+        "load_error":    "خطأ: تعذّر تحميل '{path}'. قد يكون الملف تالفاً أو بتنسيق غير مدعوم. التنسيقات المدعومة: JPG، PNG، BMP، WEBP، TIFF.",
         "yes_answers":   ("نعم", "yes", "y"),
         "no_answers":    ("لا", "no", "n"),
         "colours": {
@@ -498,6 +502,7 @@ TRANSLATIONS: dict[str, dict] = {
                               "Esta imagem parece estar em conformidade para publicação.",
         "pdf_footer":         "Compliact  |  Relatório gerado em {now}  |  Saída: {name}",
         "save_error":    "  [erro] Falha ao gravar imagem em: {path}",
+        "load_error":    "Erro: não foi possível carregar '{path}'. O arquivo pode estar corrompido ou em um formato não suportado. Formatos suportados: JPG, PNG, BMP, WEBP, TIFF.",
         "yes_answers":   ("sim", "s", "yes", "y"),
         "no_answers":    ("não", "nao", "n", "no"),
         "colours": {
@@ -589,6 +594,7 @@ TRANSLATIONS: dict[str, dict] = {
                               "Dieses Bild scheint konform zum Teilen.",
         "pdf_footer":         "Compliact  |  Bericht erstellt am {now}  |  Ausgabe: {name}",
         "save_error":    "  [Fehler] Bild konnte nicht geschrieben werden nach: {path}",
+        "load_error":    "Fehler: '{path}' konnte nicht geladen werden. Die Datei ist möglicherweise beschädigt oder in einem nicht unterstützten Format. Unterstützte Formate: JPG, PNG, BMP, WEBP, TIFF.",
         "yes_answers":   ("ja", "j", "yes", "y"),
         "no_answers":    ("nein", "n", "no"),
         "colours": {
@@ -680,6 +686,7 @@ TRANSLATIONS: dict[str, dict] = {
                               "یہ تصویر اشاعت کے لیے تعمیل کے مطابق دکھتی ہے۔",
         "pdf_footer":         "Compliact  |  رپورٹ تیار کردہ {now}  |  آؤٹ پٹ: {name}",
         "save_error":    "  [خرابی] تصویر یہاں محفوظ نہیں ہو سکی: {path}",
+        "load_error":    "خرابی: '{path}' لوڈ نہیں ہو سکی۔ فائل خراب ہو سکتی ہے یا غیر تعاون یافتہ فارمیٹ میں ہے۔ تعاون یافتہ فارمیٹس: JPG، PNG، BMP، WEBP، TIFF۔",
         "yes_answers":   ("ہاں", "h", "yes", "y"),
         "no_answers":    ("نہیں", "n", "no"),
         "colours": {
@@ -1792,7 +1799,7 @@ def detect_faces(image_path: str, output_path: str, scale_factor: float,
                  strings: dict) -> int:
     image = cv2.imread(image_path)
     if image is None:
-        print(f"Error: could not load image '{image_path}'.", file=sys.stderr)
+        print(strings["load_error"].format(path=image_path), file=sys.stderr)
         sys.exit(1)
 
     # --- Analysis: AI flag and scene classification ---
