@@ -8,3 +8,11 @@ group_photo_detected_report_20*.pdf
 ~$*
 test_photo_detected_20*.jpg
 test_photo_detected_20*_report.pdf
+
+# Generated test outputs
+group_photo_test*
+
+# Private test images — must never be committed
+test_oval_small.jpg
+lana*.jpg
+lana*.JPG
