@@ -30,8 +30,10 @@ import os
 import threading
 import time
 
+import arabic_reshaper
 import cv2
 import numpy as np
+from bidi.algorithm import get_display
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 from PIL import Image, ImageDraw, ImageFont
@@ -39,6 +41,27 @@ from PIL import Image, ImageDraw, ImageFont
 # Segoe UI is present on all modern Windows systems and supports full Unicode.
 _PDF_FONT_REGULAR = "C:/Windows/Fonts/segoeui.ttf"
 _PDF_FONT_BOLD    = "C:/Windows/Fonts/segoeuib.ttf"
+
+
+# ---------------------------------------------------------------------------
+# RTL text helper
+# ---------------------------------------------------------------------------
+
+def rtl_fix(text: str, strings: dict) -> str:
+    """Return text ready for display/rendering in the active language.
+
+    For RTL languages (Arabic, Urdu) applies two passes:
+      1. arabic_reshaper.reshape()  — joins Arabic letters into their correct
+         contextual forms (initial / medial / final / isolated).
+      2. bidi.algorithm.get_display() — reorders the Unicode codepoints into
+         visual (right-to-left) presentation order so terminals and PDF
+         renderers that do not handle BiDi natively show the text correctly.
+
+    For LTR languages the text is returned unchanged.
+    """
+    if not strings.get("rtl", False):
+        return text
+    return get_display(arabic_reshaper.reshape(text))
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +157,10 @@ TRANSLATIONS: dict[str, dict] = {
                               "This image appears compliant for sharing.",
         "pdf_footer":         "Compliact  |  Report generated {now}  |  Output: {name}",
         "save_error":    "  [error] Failed to write image to: {path}",
-        "load_error":    "Error: could not load '{path}'. The file may be corrupted or in an unsupported format. Supported formats: JPG, PNG, BMP, WEBP, TIFF.",
+        "load_error":          "Error: could not load '{path}'. The file may be corrupted or in an unsupported format. Supported formats: JPG, PNG, BMP, WEBP, TIFF.",
+        "outcome_consented":   "consented",
+        "outcome_blurred":     "blurred",
+        "outcome_skipped":     "skipped",
         "yes_answers":   ("yes", "y"),
         "no_answers":    ("no", "n"),
         "colours": {
@@ -226,7 +252,10 @@ TRANSLATIONS: dict[str, dict] = {
                               "Cette image semble conforme pour publication.",
         "pdf_footer":         "Compliact  |  Rapport généré le {now}  |  Sortie : {name}",
         "save_error":    "  [erreur] Impossible d'écrire l'image dans : {path}",
-        "load_error":    "Erreur : impossible de charger '{path}'. Le fichier est peut-être corrompu ou dans un format non pris en charge. Formats pris en charge : JPG, PNG, BMP, WEBP, TIFF.",
+        "load_error":          "Erreur : impossible de charger '{path}'. Le fichier est peut-être corrompu ou dans un format non pris en charge. Formats pris en charge : JPG, PNG, BMP, WEBP, TIFF.",
+        "outcome_consented":   "consentement obtenu",
+        "outcome_blurred":     "floutée",
+        "outcome_skipped":     "ignorée",
         "yes_answers":   ("oui", "o", "yes", "y"),
         "no_answers":    ("non", "n", "no"),
         "colours": {
@@ -318,7 +347,10 @@ TRANSLATIONS: dict[str, dict] = {
                               "Esta imagen parece conforme para publicar.",
         "pdf_footer":         "Compliact  |  Informe generado el {now}  |  Salida: {name}",
         "save_error":    "  [error] No se pudo escribir la imagen en: {path}",
-        "load_error":    "Error: no se pudo cargar '{path}'. El archivo puede estar dañado o en un formato no compatible. Formatos admitidos: JPG, PNG, BMP, WEBP, TIFF.",
+        "load_error":          "Error: no se pudo cargar '{path}'. El archivo puede estar dañado o en un formato no compatible. Formatos admitidos: JPG, PNG, BMP, WEBP, TIFF.",
+        "outcome_consented":   "consentida",
+        "outcome_blurred":     "difuminada",
+        "outcome_skipped":     "omitida",
         "yes_answers":   ("sí", "si", "s", "yes", "y"),
         "no_answers":    ("no", "n"),
         "colours": {
@@ -410,7 +442,10 @@ TRANSLATIONS: dict[str, dict] = {
                               "تبدو هذه الصورة متوافقة للنشر.",
         "pdf_footer":         "Compliact  |  تم إنشاء التقرير: {now}  |  المخرج: {name}",
         "save_error":    "  [خطأ] تعذّر كتابة الصورة إلى: {path}",
-        "load_error":    "خطأ: تعذّر تحميل '{path}'. قد يكون الملف تالفاً أو بتنسيق غير مدعوم. التنسيقات المدعومة: JPG، PNG، BMP، WEBP، TIFF.",
+        "load_error":          "خطأ: تعذّر تحميل '{path}'. قد يكون الملف تالفاً أو بتنسيق غير مدعوم. التنسيقات المدعومة: JPG، PNG، BMP، WEBP، TIFF.",
+        "outcome_consented":   "تمت الموافقة",
+        "outcome_blurred":     "مُعتَّم",
+        "outcome_skipped":     "متروك",
         "yes_answers":   ("نعم", "yes", "y"),
         "no_answers":    ("لا", "no", "n"),
         "colours": {
@@ -502,7 +537,10 @@ TRANSLATIONS: dict[str, dict] = {
                               "Esta imagem parece estar em conformidade para publicação.",
         "pdf_footer":         "Compliact  |  Relatório gerado em {now}  |  Saída: {name}",
         "save_error":    "  [erro] Falha ao gravar imagem em: {path}",
-        "load_error":    "Erro: não foi possível carregar '{path}'. O arquivo pode estar corrompido ou em um formato não suportado. Formatos suportados: JPG, PNG, BMP, WEBP, TIFF.",
+        "load_error":          "Erro: não foi possível carregar '{path}'. O arquivo pode estar corrompido ou em um formato não suportado. Formatos suportados: JPG, PNG, BMP, WEBP, TIFF.",
+        "outcome_consented":   "consentida",
+        "outcome_blurred":     "desfocada",
+        "outcome_skipped":     "ignorada",
         "yes_answers":   ("sim", "s", "yes", "y"),
         "no_answers":    ("não", "nao", "n", "no"),
         "colours": {
@@ -594,7 +632,10 @@ TRANSLATIONS: dict[str, dict] = {
                               "Dieses Bild scheint konform zum Teilen.",
         "pdf_footer":         "Compliact  |  Bericht erstellt am {now}  |  Ausgabe: {name}",
         "save_error":    "  [Fehler] Bild konnte nicht geschrieben werden nach: {path}",
-        "load_error":    "Fehler: '{path}' konnte nicht geladen werden. Die Datei ist möglicherweise beschädigt oder in einem nicht unterstützten Format. Unterstützte Formate: JPG, PNG, BMP, WEBP, TIFF.",
+        "load_error":          "Fehler: '{path}' konnte nicht geladen werden. Die Datei ist möglicherweise beschädigt oder in einem nicht unterstützten Format. Unterstützte Formate: JPG, PNG, BMP, WEBP, TIFF.",
+        "outcome_consented":   "zugestimmt",
+        "outcome_blurred":     "unkenntlich",
+        "outcome_skipped":     "übersprungen",
         "yes_answers":   ("ja", "j", "yes", "y"),
         "no_answers":    ("nein", "n", "no"),
         "colours": {
@@ -686,7 +727,10 @@ TRANSLATIONS: dict[str, dict] = {
                               "یہ تصویر اشاعت کے لیے تعمیل کے مطابق دکھتی ہے۔",
         "pdf_footer":         "Compliact  |  رپورٹ تیار کردہ {now}  |  آؤٹ پٹ: {name}",
         "save_error":    "  [خرابی] تصویر یہاں محفوظ نہیں ہو سکی: {path}",
-        "load_error":    "خرابی: '{path}' لوڈ نہیں ہو سکی۔ فائل خراب ہو سکتی ہے یا غیر تعاون یافتہ فارمیٹ میں ہے۔ تعاون یافتہ فارمیٹس: JPG، PNG، BMP، WEBP، TIFF۔",
+        "load_error":          "خرابی: '{path}' لوڈ نہیں ہو سکی۔ فائل خراب ہو سکتی ہے یا غیر تعاون یافتہ فارمیٹ میں ہے۔ تعاون یافتہ فارمیٹس: JPG، PNG، BMP، WEBP، TIFF۔",
+        "outcome_consented":   "رضامندی حاصل",
+        "outcome_blurred":     "دھندلا",
+        "outcome_skipped":     "چھوڑا گیا",
         "yes_answers":   ("ہاں", "h", "yes", "y"),
         "no_answers":    ("نہیں", "n", "no"),
         "colours": {
@@ -1535,48 +1579,48 @@ def generate_pdf_report(
     pdf.set_font("Segoe", "B", 13)
     pdf.set_text_color(255, 255, 255)
     pdf.set_y(pdf.get_y() + 2)
-    pdf.multi_cell(W, 10, "  Compliact  |  " + strings["pdf_title"],
+    pdf.multi_cell(W, 10, rtl_fix("  Compliact  |  " + strings["pdf_title"], strings),
                    new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_text_color(40, 40, 40)
     pdf.ln(2)
 
     # ── Title ────────────────────────────────────────────────────────────────
-    h1(strings["pdf_title"])
+    h1(rtl_fix(strings["pdf_title"], strings))
     pdf.set_font("Segoe", "", 10)
     pdf.set_text_color(120, 120, 120)
     pdf.multi_cell(W, 6,
-                   strings["pdf_generated"].format(
-                       now=now, lang=lang, name=Path(image_path).name),
+                   rtl_fix(strings["pdf_generated"].format(
+                       now=now, lang=lang, name=Path(image_path).name), strings),
                    new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(2)
     rule()
 
     # ── Section 1: Image info ────────────────────────────────────────────────
-    h2(strings["pdf_s1_title"])
+    h2(rtl_fix(strings["pdf_s1_title"], strings))
     img_cv = cv2.imread(image_path)
     if img_cv is not None:
         ih, iw = img_cv.shape[:2]
-        row2(strings["pdf_file"],       Path(image_path).name)
-        row2(strings["pdf_dimensions"], f"{iw} x {ih} px")
+        row2(rtl_fix(strings["pdf_file"], strings),       Path(image_path).name)
+        row2(rtl_fix(strings["pdf_dimensions"], strings), f"{iw} x {ih} px")
     scene_str = strings["scene_indoor"] if scene == "indoor" else strings["scene_outdoor"]
     # Strip leading ⚠ — Segoe UI in fpdf2 cannot render that glyph
     ai_str = strings["ai_label"] if ai_flag else strings["ai_none"]
     ai_str = ai_str.lstrip("⚠ ")
-    row2(strings["pdf_scene"],      scene_str)
-    row2(strings["pdf_ai_content"], ai_str)
+    row2(rtl_fix(strings["pdf_scene"], strings),      rtl_fix(scene_str, strings))
+    row2(rtl_fix(strings["pdf_ai_content"], strings), rtl_fix(ai_str, strings))
     pdf.ln(2)
 
     # ── Section 2: Face processing summary ───────────────────────────────────
-    h2(strings["pdf_s2_title"])
-    row2(strings["pdf_total"],     str(total_faces))
-    row2(strings["pdf_consented"], str(consented))
-    row2(strings["pdf_blurred"],   str(blurred_total))
+    h2(rtl_fix(strings["pdf_s2_title"], strings))
+    row2(rtl_fix(strings["pdf_total"], strings),     str(total_faces))
+    row2(rtl_fix(strings["pdf_consented"], strings), str(consented))
+    row2(rtl_fix(strings["pdf_blurred"], strings),   str(blurred_total))
     if tally["blurred"]:
         breakdown = ", ".join(
             f"{c} {translate_style(s, strings)}" for s, c in sorted(tally["blurred"].items()) if c
         )
-        row2(strings["pdf_breakdown"], breakdown)
-    row2(strings["pdf_skipped"], str(skipped))
+        row2(rtl_fix(strings["pdf_breakdown"], strings), rtl_fix(breakdown, strings))
+    row2(rtl_fix(strings["pdf_skipped"], strings), str(skipped))
     pdf.ln(2)
 
     # ── Per-face table — columns sum exactly to W ────────────────────────────
@@ -1584,11 +1628,11 @@ def generate_pdf_report(
         c0 = 8; c1 = 30; c2 = 32; c4 = 28; c3 = W - c0 - c1 - c2 - c4
         col_w   = [c0, c1, c2, c3, c4]
         headers = [
-            strings["pdf_col_idx"],
-            strings["pdf_col_outcome"],
-            strings["pdf_col_style"],
-            strings["pdf_col_colour"],
-            strings["pdf_col_consent"],
+            rtl_fix(strings["pdf_col_idx"],     strings),
+            rtl_fix(strings["pdf_col_outcome"],  strings),
+            rtl_fix(strings["pdf_col_style"],    strings),
+            rtl_fix(strings["pdf_col_colour"],   strings),
+            rtl_fix(strings["pdf_col_consent"],  strings),
         ]
         pdf.set_font("Segoe", "B", 10)
         pdf.set_fill_color(215, 225, 245)
@@ -1604,37 +1648,39 @@ def generate_pdf_report(
             if secs is None:
                 consent_cell = "-"
             elif secs == 0:
-                consent_cell = strings["pdf_expired"]
+                consent_cell = rtl_fix(strings["pdf_expired"], strings)
             else:
                 consent_cell = f"{secs}s"
             pdf.cell(col_w[0], 7, str(row["index"]), border=1, fill=True)
-            pdf.cell(col_w[1], 7, row["outcome"],    border=1, fill=True)
-            pdf.cell(col_w[2], 7, translate_style(row["style"], strings), border=1, fill=True)
-            pdf.cell(col_w[3], 7, row["colour"],     border=1, fill=True)
-            pdf.cell(col_w[4], 7, consent_cell,      border=1, fill=True)
+            outcome_key = f"outcome_{row['outcome']}"
+            translated_outcome = rtl_fix(strings.get(outcome_key, row["outcome"]), strings)
+            pdf.cell(col_w[1], 7, translated_outcome,                                      border=1, fill=True)
+            pdf.cell(col_w[2], 7, rtl_fix(translate_style(row["style"], strings), strings), border=1, fill=True)
+            pdf.cell(col_w[3], 7, rtl_fix(row["colour"], strings),                        border=1, fill=True)
+            pdf.cell(col_w[4], 7, consent_cell,                                            border=1, fill=True)
             pdf.ln()
     pdf.ln(2)
 
     # ── Section 3: Safe Content Score ────────────────────────────────────────
-    h2(strings["pdf_s3_title"])
+    h2(rtl_fix(strings["pdf_s3_title"], strings))
     pdf.set_font("Segoe", "B", 28)
     pdf.set_text_color(*risk_colour)
     pdf.multi_cell(W, 10, f"{score}/100", new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("Segoe", "B", 13)
-    pdf.multi_cell(W, 7, risk_label.upper(), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.multi_cell(W, 7, rtl_fix(risk_label.upper(), strings), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_font("Segoe", "", 11)
     # Strip leading emoji glyph (outside Segoe UI's range)
     badge = badge_label(score, strings)
     badge_text = badge.split(" ", 1)[1] if badge[0] not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz" else badge
-    pdf.multi_cell(W, 7, badge_text, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+    pdf.multi_cell(W, 7, rtl_fix(badge_text, strings), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.set_text_color(40, 40, 40)
     pdf.set_font("Segoe", "", 10)
-    pdf.multi_cell(W, 6, strings["pdf_score_formula"],
+    pdf.multi_cell(W, 6, rtl_fix(strings["pdf_score_formula"], strings),
                    new_x=XPos.LMARGIN, new_y=YPos.NEXT)
     pdf.ln(2)
 
     # ── Section 4: Recommendations ───────────────────────────────────────────
-    h2(strings["pdf_s4_title"])
+    h2(rtl_fix(strings["pdf_s4_title"], strings))
     recs: list[str] = []
     if skipped > 0:
         recs.append(strings["pdf_rec_skipped"].format(n=skipped))
@@ -1650,7 +1696,7 @@ def generate_pdf_report(
         pdf.cell(6, 7, "\u2022")
         pdf.set_font("Segoe", "", 11)
         pdf.set_text_color(40, 40, 40)
-        pdf.multi_cell(W - 6, 7, rec, new_x=XPos.LMARGIN, new_y=YPos.NEXT)
+        pdf.multi_cell(W - 6, 7, rtl_fix(rec, strings), new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         pdf.ln(1)
     pdf.ln(1)
 
@@ -1659,8 +1705,8 @@ def generate_pdf_report(
     pdf.set_font("Segoe", "", 9)
     pdf.set_text_color(150, 150, 150)
     pdf.multi_cell(W, 6,
-                   strings["pdf_footer"].format(
-                       now=now, name=Path(output_image_path).name),
+                   rtl_fix(strings["pdf_footer"].format(
+                       now=now, name=Path(output_image_path).name), strings),
                    new_x=XPos.LMARGIN, new_y=YPos.NEXT)
 
     # Write the PDF — if the file is open in a viewer (locked), fall back to a
