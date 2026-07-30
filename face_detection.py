@@ -141,7 +141,7 @@ TRANSLATIONS: dict[str, dict] = {
         "pdf_col_outcome":    "Outcome",
         "pdf_col_style":      "Blur style",
         "pdf_col_colour":     "Clothing colour",
-        "pdf_col_consent":    "Consent (secs)",
+        "pdf_col_consent":    "Consent (s)",
         "pdf_expired":        "expired",
         "pdf_s3_title":       "3. Safe Content Score",
         "pdf_score_formula":  "Score formula: 100 x (consented + blurred) / total faces detected.\n"
@@ -236,7 +236,7 @@ TRANSLATIONS: dict[str, dict] = {
         "pdf_col_outcome":    "Résultat",
         "pdf_col_style":      "Style de flou",
         "pdf_col_colour":     "Couleur vêtement",
-        "pdf_col_consent":    "Consentement (sec)",
+        "pdf_col_consent":    "Consent. (s)",
         "pdf_expired":        "expiré",
         "pdf_s3_title":       "3. Score de contenu sûr",
         "pdf_score_formula":  "Formule : 100 x (consentis + floutés) / total visages détectés.\n"
@@ -329,9 +329,9 @@ TRANSLATIONS: dict[str, dict] = {
         "pdf_skipped":        "Sin cambios",
         "pdf_col_idx":        "#",
         "pdf_col_outcome":    "Resultado",
-        "pdf_col_style":      "Estilo de difuminado",
+        "pdf_col_style":      "Estilo",
         "pdf_col_colour":     "Color de ropa",
-        "pdf_col_consent":    "Consentimiento (seg)",
+        "pdf_col_consent":    "Consent. (s)",
         "pdf_expired":        "expirado",
         "pdf_s3_title":       "3. Puntuación de contenido seguro",
         "pdf_score_formula":  "Fórmula: 100 x (consentidos + difuminados) / total caras detectadas.\n"
@@ -426,7 +426,7 @@ TRANSLATIONS: dict[str, dict] = {
         "pdf_col_outcome":    "النتيجة",
         "pdf_col_style":      "أسلوب التمويه",
         "pdf_col_colour":     "لون الملابس",
-        "pdf_col_consent":    "الموافقة (ثانية)",
+        "pdf_col_consent":    "الموافقة (ث)",
         "pdf_expired":        "منتهية",
         "pdf_s3_title":       "3. نقاط المحتوى الآمن",
         "pdf_score_formula":  "الصيغة: 100 × (الموافق عليها + المموَّهة) / إجمالي الوجوه المكتشفة.\n"
@@ -519,9 +519,9 @@ TRANSLATIONS: dict[str, dict] = {
         "pdf_skipped":        "Sem alteração",
         "pdf_col_idx":        "#",
         "pdf_col_outcome":    "Resultado",
-        "pdf_col_style":      "Estilo de desfoque",
+        "pdf_col_style":      "Estilo",
         "pdf_col_colour":     "Cor da roupa",
-        "pdf_col_consent":    "Consentimento (seg)",
+        "pdf_col_consent":    "Consent. (s)",
         "pdf_expired":        "expirado",
         "pdf_s3_title":       "3. Pontuação de conteúdo seguro",
         "pdf_score_formula":  "Fórmula: 100 x (consentidos + desfocados) / total de rostos detectados.\n"
@@ -614,9 +614,9 @@ TRANSLATIONS: dict[str, dict] = {
         "pdf_skipped":        "Unverändert",
         "pdf_col_idx":        "#",
         "pdf_col_outcome":    "Ergebnis",
-        "pdf_col_style":      "Unkenntlichungs-Stil",
+        "pdf_col_style":      "Methode",
         "pdf_col_colour":     "Kleidungsfarbe",
-        "pdf_col_consent":    "Einverständnis (Sek.)",
+        "pdf_col_consent":    "Einverstd. (s)",
         "pdf_expired":        "abgelaufen",
         "pdf_s3_title":       "3. Inhaltssicherheitsbewertung",
         "pdf_score_formula":  "Formel: 100 x (einverstanden + unkenntlich) / erkannte Gesichter gesamt.\n"
@@ -709,9 +709,9 @@ TRANSLATIONS: dict[str, dict] = {
         "pdf_skipped":        "بغیر تبدیلی",
         "pdf_col_idx":        "#",
         "pdf_col_outcome":    "نتیجہ",
-        "pdf_col_style":      "دھندلاپن کا انداز",
+        "pdf_col_style":      "طریقہ",
         "pdf_col_colour":     "لباس کا رنگ",
-        "pdf_col_consent":    "رضامندی (سیکنڈ)",
+        "pdf_col_consent":    "رضامندی (سیک)",
         "pdf_expired":        "ختم",
         "pdf_s3_title":       "3. محفوظ مواد اسکور",
         "pdf_score_formula":  "فارمولہ: 100 × (رضامندی + دھندلے) ÷ کل چہرے۔\n"
@@ -1367,10 +1367,20 @@ def run_consent_flow(image, faces, strings: dict) -> tuple[dict, list[dict]]:
             consent_secs = ask_consent_duration(strings)
             granted_at   = time.time()          # wall-clock moment consent was given
 
+            # Expand bbox by 15 % on each side for blur, clamped to image bounds.
+            # Original (x, y, w, h) is kept for consent badge / green rectangle.
+            img_h_px, img_w_px = image.shape[:2]
+            pad_x = int(w * 0.15)
+            pad_y = int(h * 0.15)
+            bx = max(0, x - pad_x)
+            by = max(0, y - pad_y)
+            bw = min(img_w_px - bx, w + 2 * pad_x)
+            bh = min(img_h_px - by, h + 2 * pad_y)
+
             if consent_secs <= 0:
                 # Consent has already expired — auto-blur
                 print(strings["consent_expired"].format(i=i))
-                blur_face_square(image, x, y, w, h)
+                blur_face_square(image, bx, by, bw, bh)
                 tally["blurred"]["square"] = tally["blurred"].get("square", 0) + 1
                 face_details.append({
                     "index": i, "outcome": "blurred", "style": "square",
@@ -1395,19 +1405,26 @@ def run_consent_flow(image, faces, strings: dict) -> tuple[dict, list[dict]]:
             should_blur = ask_yes_no(strings["blur_q"], strings)
             if should_blur:
                 style = ask_blur_style(strings)
-                print(f"[DEBUG] blur dispatch: x={x} y={y} w={w} h={h} image.shape={image.shape}")
+                # Expand bbox by 15 % on each side for blur, clamped to image bounds.
+                img_h_px, img_w_px = image.shape[:2]
+                pad_x = int(w * 0.15)
+                pad_y = int(h * 0.15)
+                bx = max(0, x - pad_x)
+                by = max(0, y - pad_y)
+                bw = min(img_w_px - bx, w + 2 * pad_x)
+                bh = min(img_h_px - by, h + 2 * pad_y)
                 if style == "oval":
-                    blur_face_oval(image, x, y, w, h)
+                    blur_face_oval(image, bx, by, bw, bh)
                 elif style == "strong":
-                    blur_face_strong(image, x, y, w, h)
+                    blur_face_strong(image, bx, by, bw, bh)
                 elif style == "silhouette":
-                    blur_face_silhouette(image, x, y, w, h)
+                    blur_face_silhouette(image, bx, by, bw, bh)
                 elif style == "emoji":
                     emoji_name, emoji_char = ask_emoji_choice()
-                    blur_face_emoji(image, x, y, w, h, emoji_char)
+                    blur_face_emoji(image, bx, by, bw, bh, emoji_char)
                     style = f"emoji:{emoji_name}"  # enrich for tally/PDF
                 else:
-                    blur_face_square(image, x, y, w, h)
+                    blur_face_square(image, bx, by, bw, bh)
                 print(strings["blur_done"].format(i=i, style=translate_style(style, strings)))
                 tally["blurred"][style] = tally["blurred"].get(style, 0) + 1
                 face_details.append({
@@ -1625,7 +1642,7 @@ def generate_pdf_report(
 
     # ── Per-face table — columns sum exactly to W ────────────────────────────
     if face_details:
-        c0 = 8; c1 = 30; c2 = 32; c4 = 28; c3 = W - c0 - c1 - c2 - c4
+        c0 = 8; c1 = 30; c2 = 32; c4 = 32; c3 = W - c0 - c1 - c2 - c4
         col_w   = [c0, c1, c2, c3, c4]
         headers = [
             rtl_fix(strings["pdf_col_idx"],     strings),
@@ -1744,14 +1761,26 @@ def _render_expired_image(
     if img is None:
         return
 
+    img_h_px, img_w_px = img.shape[:2]
+
     for detail in face_details:
         i   = detail["index"]
         x, y, w, h = detail["bbox"]
 
+        # Expand by 15 % on each side (same margin as the live blur dispatch).
+        # bbox in face_details is always the original tight box, so expansion
+        # must be re-applied here on every re-render.
+        pad_x = int(w * 0.15)
+        pad_y = int(h * 0.15)
+        bx = max(0, x - pad_x)
+        by = max(0, y - pad_y)
+        bw = min(img_w_px - bx, w + 2 * pad_x)
+        bh = min(img_h_px - by, h + 2 * pad_y)
+
         if detail["outcome"] == "consented":
             if i in expired_indices:
                 # Timer has fired for this face — blur it now
-                blur_face_square(img, x, y, w, h)
+                blur_face_square(img, bx, by, bw, bh)
             else:
                 # Still active — redraw box and live badge with remaining time
                 secs_remaining = detail["consent_secs"] - int(time.time() - detail["_granted_at"])
@@ -1765,16 +1794,16 @@ def _render_expired_image(
         elif detail["outcome"] == "blurred":
             style = detail["style"]
             if style == "oval":
-                blur_face_oval(img, x, y, w, h)
+                blur_face_oval(img, bx, by, bw, bh)
             elif style == "strong":
-                blur_face_strong(img, x, y, w, h)
+                blur_face_strong(img, bx, by, bw, bh)
             elif style == "silhouette":
-                blur_face_silhouette(img, x, y, w, h)
+                blur_face_silhouette(img, bx, by, bw, bh)
             elif style.startswith("emoji:"):
                 # emoji char stored separately — fall back to square on re-render
-                blur_face_square(img, x, y, w, h)
+                blur_face_square(img, bx, by, bw, bh)
             else:
-                blur_face_square(img, x, y, w, h)
+                blur_face_square(img, bx, by, bw, bh)
 
         # outcome == "skipped": leave the face untouched
 
