@@ -139,9 +139,10 @@ TRANSLATIONS: dict[str, dict] = {
         "colours": {
             "red": "red", "orange": "orange", "yellow": "yellow",
             "green": "green", "teal": "teal", "blue": "blue",
-            "purple": "purple", "pink": "pink", "white": "white",
+            "navy": "navy", "purple": "purple", "pink": "pink", "white": "white",
             "light grey": "light grey", "grey": "grey", "dark grey": "dark grey",
-            "black": "black", "brown": "brown", "beige": "beige",
+            "black": "black", "brown": "brown",
+            "rust": "rust", "terracotta": "terracotta", "beige": "beige",
         },
     },
     "fr": {
@@ -229,9 +230,10 @@ TRANSLATIONS: dict[str, dict] = {
         "colours": {
             "red": "rouge", "orange": "orange", "yellow": "jaune",
             "green": "vert", "teal": "vert sarcelle", "blue": "bleu",
-            "purple": "violet", "pink": "rose", "white": "blanc",
+            "navy": "bleu marine", "purple": "violet", "pink": "rose", "white": "blanc",
             "light grey": "gris clair", "grey": "gris", "dark grey": "gris foncé",
-            "black": "noir", "brown": "marron", "beige": "beige",
+            "black": "noir", "brown": "marron",
+            "rust": "rouille", "terracotta": "terre cuite", "beige": "beige",
         },
     },
     "es": {
@@ -319,9 +321,10 @@ TRANSLATIONS: dict[str, dict] = {
         "colours": {
             "red": "rojo", "orange": "naranja", "yellow": "amarillo",
             "green": "verde", "teal": "verde azulado", "blue": "azul",
-            "purple": "morado", "pink": "rosa", "white": "blanco",
+            "navy": "azul marino", "purple": "morado", "pink": "rosa", "white": "blanco",
             "light grey": "gris claro", "grey": "gris", "dark grey": "gris oscuro",
-            "black": "negro", "brown": "marrón", "beige": "beige",
+            "black": "negro", "brown": "marrón",
+            "rust": "óxido", "terracotta": "terracota", "beige": "beige",
         },
     },
     "ar": {
@@ -409,9 +412,10 @@ TRANSLATIONS: dict[str, dict] = {
         "colours": {
             "red": "أحمر", "orange": "برتقالي", "yellow": "أصفر",
             "green": "أخضر", "teal": "أزرق مخضر", "blue": "أزرق",
-            "purple": "بنفسجي", "pink": "وردي", "white": "أبيض",
+            "navy": "كحلي", "purple": "بنفسجي", "pink": "وردي", "white": "أبيض",
             "light grey": "رمادي فاتح", "grey": "رمادي", "dark grey": "رمادي غامق",
-            "black": "أسود", "brown": "بني", "beige": "بيج",
+            "black": "أسود", "brown": "بني",
+            "rust": "صدئ", "terracotta": "تيراكوتا", "beige": "بيج",
         },
     },
     "pt": {
@@ -499,9 +503,10 @@ TRANSLATIONS: dict[str, dict] = {
         "colours": {
             "red": "vermelho", "orange": "laranja", "yellow": "amarelo",
             "green": "verde", "teal": "verde-azulado", "blue": "azul",
-            "purple": "roxo", "pink": "rosa", "white": "branco",
+            "navy": "azul-marinho", "purple": "roxo", "pink": "rosa", "white": "branco",
             "light grey": "cinza claro", "grey": "cinza", "dark grey": "cinza escuro",
-            "black": "preto", "brown": "marrom", "beige": "bege",
+            "black": "preto", "brown": "marrom",
+            "rust": "ferrugem", "terracotta": "terracota", "beige": "bege",
         },
     },
     "de": {
@@ -589,9 +594,10 @@ TRANSLATIONS: dict[str, dict] = {
         "colours": {
             "red": "rot", "orange": "orange", "yellow": "gelb",
             "green": "grün", "teal": "blaugrün", "blue": "blau",
-            "purple": "lila", "pink": "rosa", "white": "weiß",
+            "navy": "marineblau", "purple": "lila", "pink": "rosa", "white": "weiß",
             "light grey": "hellgrau", "grey": "grau", "dark grey": "dunkelgrau",
-            "black": "schwarz", "brown": "braun", "beige": "beige",
+            "black": "schwarz", "brown": "braun",
+            "rust": "rostfarben", "terracotta": "terrakotta", "beige": "beige",
         },
     },
     "ur": {
@@ -679,9 +685,10 @@ TRANSLATIONS: dict[str, dict] = {
         "colours": {
             "red": "سرخ", "orange": "نارنجی", "yellow": "پیلا",
             "green": "سبز", "teal": "سبزی مائل نیلا", "blue": "نیلا",
-            "purple": "جامنی", "pink": "گلابی", "white": "سفید",
+            "navy": "گہرا نیلا", "purple": "جامنی", "pink": "گلابی", "white": "سفید",
             "light grey": "ہلکا سرمئی", "grey": "سرمئی", "dark grey": "گہرا سرمئی",
-            "black": "کالا", "brown": "بھورا", "beige": "بیج",
+            "black": "کالا", "brown": "بھورا",
+            "rust": "زنگ رنگ", "terracotta": "ٹیراکوٹا", "beige": "بیج",
         },
     },
 }
@@ -690,6 +697,8 @@ TRANSLATIONS: dict[str, dict] = {
 # ---------------------------------------------------------------------------
 # Named colour palette for clothing hint (BGR order to match OpenCV)
 # ---------------------------------------------------------------------------
+# BGR values intentionally chosen as representative centres for each colour
+# when measured on typical clothing under natural light.
 _COLOUR_PALETTE = {
     "red":        (  0,   0, 180),
     "orange":     (  0, 100, 220),
@@ -697,6 +706,7 @@ _COLOUR_PALETTE = {
     "green":      ( 30, 140,  30),
     "teal":       (120, 140,  30),
     "blue":       (180,  60,  20),
+    "navy":       (100,  20,  10),   # dark blue — distinct from blue/black
     "purple":     (140,  30, 120),
     "pink":       (160,  80, 200),
     "white":      (220, 220, 220),
@@ -705,8 +715,21 @@ _COLOUR_PALETTE = {
     "dark grey":  ( 70,  70,  70),
     "black":      ( 20,  20,  20),
     "brown":      ( 30,  60, 100),
+    "rust":       ( 20,  60, 175),   # burnt-orange red
+    "terracotta": ( 50,  90, 180),   # warm clay / muted orange-red
     "beige":      (180, 200, 210),
 }
+
+# Pre-computed LAB palette: built once at import time.
+# _nearest_colour_name uses this for perceptually uniform distance.
+def _build_lab_palette() -> dict:
+    lab = {}
+    for name, bgr in _COLOUR_PALETTE.items():
+        patch = np.uint8([[list(bgr)]])               # shape (1,1,3)
+        lab[name] = cv2.cvtColor(patch, cv2.COLOR_BGR2LAB)[0, 0].astype(float)
+    return lab
+
+_LAB_PALETTE: dict = _build_lab_palette()
 
 
 def parse_args() -> argparse.Namespace:
@@ -880,11 +903,12 @@ def draw_consent_timer(
 # ---------------------------------------------------------------------------
 
 def _nearest_colour_name(bgr: tuple[int, int, int]) -> str:
-    """Return the name of the closest colour in _COLOUR_PALETTE to the given BGR value."""
-    b, g, r = bgr
+    """Return the closest palette name using perceptually uniform CIE-LAB distance."""
+    patch = np.uint8([[list(bgr)]])
+    sample_lab = cv2.cvtColor(patch, cv2.COLOR_BGR2LAB)[0, 0].astype(float)
     best_name, best_dist = "unknown", float("inf")
-    for name, (pb, pg, pr) in _COLOUR_PALETTE.items():
-        dist = (b - pb) ** 2 + (g - pg) ** 2 + (r - pr) ** 2
+    for name, palette_lab in _LAB_PALETTE.items():
+        dist = float(np.sum((sample_lab - palette_lab) ** 2))
         if dist < best_dist:
             best_dist = dist
             best_name = name
@@ -893,19 +917,32 @@ def _nearest_colour_name(bgr: tuple[int, int, int]) -> str:
 
 def dominant_clothing_colour(image, x: int, y: int, w: int, h: int,
                               strings: dict) -> str:
-    """Sample strip below face bbox; return colour name in selected language."""
+    """Sample strip below face bbox; return colour name in selected language.
+
+    Crops the strip to the inner 70 % of the face width (15 % inset each side)
+    to avoid hair or background bleed at the edges.  Uses the per-channel
+    median rather than the mean, which is more robust to shadows and patterns.
+    """
     img_h, img_w = image.shape[:2]
-    strip_top = y + h
+    strip_top    = y + h + int(h * 0.15)
     strip_bottom = min(strip_top + h // 2, img_h)
-    strip_left = max(x, 0)
-    strip_right = min(x + w, img_w)
+
+    # 15 % inset on each side to stay away from background / hair edges
+    inset        = max(1, int(w * 0.15))
+    strip_left   = max(x + inset, 0)
+    strip_right  = min(x + w - inset, img_w)
 
     if strip_top >= img_h or strip_left >= strip_right:
         return strings["colours"].get("unknown", "unknown")
 
     strip = image[strip_top:strip_bottom, strip_left:strip_right]
-    mean_bgr = strip.mean(axis=(0, 1))
-    en_name = _nearest_colour_name((int(mean_bgr[0]), int(mean_bgr[1]), int(mean_bgr[2])))
+    if strip.size == 0:
+        return strings["colours"].get("unknown", "unknown")
+
+    # Median over the flattened pixel list — robust to shadows and patterns
+    pixels   = strip.reshape(-1, strip.shape[2])          # (N, 3)
+    med_bgr  = tuple(int(np.median(pixels[:, c])) for c in range(3))
+    en_name  = _nearest_colour_name(med_bgr)              # type: ignore[arg-type]
     return strings["colours"].get(en_name, en_name)
 
 
@@ -937,7 +974,7 @@ def blur_face_square(image, x: int, y: int, w: int, h: int) -> None:
         return
 
     # 3. Calculate grid size based on actual width/height
-    grid: int = max(2, min(actual_w, actual_h) // 16)
+    grid: int = max(2, min(actual_w, actual_h) // 24)
 
     # 4. Downsample to pixelate
     small = cv2.resize(face_roi, (grid, grid), interpolation=cv2.INTER_LINEAR)
@@ -965,7 +1002,7 @@ def blur_face_oval(image, x: int, y: int, w: int, h: int) -> None:
     """Pixelate only inside an ellipse fitted to the face bbox."""
     face_roi = image[y:y + h, x:x + w].copy()
     actual_h, actual_w = face_roi.shape[:2]
-    grid: int = max(4, min(actual_w, actual_h) // 16)
+    grid: int = max(4, min(actual_w, actual_h) // 24)
     small = cv2.resize(face_roi, (grid, grid), interpolation=cv2.INTER_LINEAR)
     pixelated = cv2.resize(small, (w, h), interpolation=cv2.INTER_NEAREST)
     mask_3ch = _ellipse_mask(h, w)[:, :, np.newaxis]
@@ -1762,22 +1799,58 @@ def detect_faces(image_path: str, output_path: str, scale_factor: float,
     ai_flag = detect_ai_content(image_path)
     scene   = classify_scene(image)
 
-    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    # ── DNN face detector (primary) ──────────────────────────────────────────
+    _DNN_PROTO  = str(Path(__file__).parent / "deploy.prototxt")
+    _DNN_MODEL  = str(Path(__file__).parent / "res10_300x300_ssd_iter_140000.caffemodel")
+    _DNN_CONF   = 0.5   # minimum confidence to keep a detection
 
-    cascade_path = str(Path(cv2.__file__).parent / "data" / "haarcascade_frontalface_default.xml")
-    classifier = cv2.CascadeClassifier(cascade_path)
-    if classifier.empty():
-        print("Error: failed to load Haar cascade classifier.", file=sys.stderr)
+    _dnn_available = Path(_DNN_PROTO).is_file() and Path(_DNN_MODEL).is_file()
+
+    if _dnn_available:
+        net = cv2.dnn.readNetFromCaffe(_DNN_PROTO, _DNN_MODEL)
+        img_h, img_w = image.shape[:2]
+        blob = cv2.dnn.blobFromImage(
+            cv2.resize(image, (300, 300)),
+            scalefactor=1.0,
+            size=(300, 300),
+            mean=(104.0, 177.0, 123.0),
+        )
+        net.setInput(blob)
+        detections = net.forward()   # shape: (1, 1, N, 7)
+
+        raw = []
+        for i in range(detections.shape[2]):
+            confidence = float(detections[0, 0, i, 2])
+            if confidence < _DNN_CONF:
+                continue
+            # DNN returns normalised [0,1] coords; convert to pixel (x,y,w,h)
+            x1 = int(detections[0, 0, i, 3] * img_w)
+            y1 = int(detections[0, 0, i, 4] * img_h)
+            x2 = int(detections[0, 0, i, 5] * img_w)
+            y2 = int(detections[0, 0, i, 6] * img_h)
+            x1, y1 = max(0, x1), max(0, y1)
+            x2, y2 = min(img_w, x2), min(img_h, y2)
+            bw, bh = x2 - x1, y2 - y1
+            if bw > 0 and bh > 0:
+                raw.append((x1, y1, bw, bh))
+    else:
+        # ── Haar Cascade fallback (used only when DNN model files are absent) ─
+        # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        # cascade_path = str(Path(cv2.__file__).parent / "data" / "haarcascade_frontalface_default.xml")
+        # classifier = cv2.CascadeClassifier(cascade_path)
+        # if classifier.empty():
+        #     print("Error: failed to load Haar cascade classifier.", file=sys.stderr)
+        #     sys.exit(1)
+        # faces = classifier.detectMultiScale(
+        #     gray,
+        #     scaleFactor=scale_factor,
+        #     minNeighbors=min_neighbors,
+        #     minSize=min_size,
+        # )
+        # raw = list(faces) if hasattr(faces, "__iter__") else []
+        print("Error: DNN model files not found and Haar fallback is disabled.", file=sys.stderr)
         sys.exit(1)
 
-    faces = classifier.detectMultiScale(
-        gray,
-        scaleFactor=scale_factor,
-        minNeighbors=min_neighbors,
-        minSize=min_size,
-    )
-
-    raw = list(faces) if hasattr(faces, "__iter__") else []
     faces = nms_faces(raw)
     face_count = len(faces)
 
