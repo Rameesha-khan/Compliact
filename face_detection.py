@@ -922,12 +922,16 @@ def draw_consent_timer(
         txt_colour = (255, 255, 255)
 
     font       = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = max(0.4, min(0.6, w / 120))
-    thickness  = 1
+    # Scale with face width: 0.4 minimum (small faces ~80px) up to 1.6 (large faces ~400px).
+    # w/250 gives 0.4 at 100px, 0.8 at 200px, 1.6 at 400px — readable at every size.
+    font_scale = max(0.4, min(1.6, w / 250))
+    # Thickness scales with font: 1 for small, 2 for medium+, capped at 3.
+    thickness  = max(1, min(3, int(font_scale * 2)))
 
     (tw, th), baseline = cv2.getTextSize(label, font, font_scale, thickness)
 
-    pad    = 4
+    # Padding scales with face width so the badge doesn't look cramped on large faces.
+    pad    = max(4, int(w * 0.03))
     bx1    = x + w - tw - pad * 2      # badge left
     by1    = y - th - pad * 2 - 2      # badge top  (just above the box)
     bx2    = x + w                      # badge right
@@ -1140,6 +1144,7 @@ def _render_emoji_to_fit(target_w: int, target_h: int, char: str) -> np.ndarray:
     rows = np.where(np.any(alpha_mask, axis=1))[0]
     cols = np.where(np.any(alpha_mask, axis=0))[0]
     if len(rows) == 0:
+        # Signal to caller that rendering failed — caller must handle privacy fallback.
         return np.zeros((target_h, target_w, 4), dtype=np.uint8)
 
     cropped = arr[rows[0]:rows[-1] + 1, cols[0]:cols[-1] + 1]
@@ -1149,8 +1154,16 @@ def _render_emoji_to_fit(target_w: int, target_h: int, char: str) -> np.ndarray:
 
 
 def blur_face_emoji(image, x: int, y: int, w: int, h: int, char: str) -> None:
-    """Overlay the given emoji character sized to exactly cover the face region."""
+    """Overlay the given emoji character sized to exactly cover the face region.
+
+    Falls back to square pixelation if the emoji renders as all-zero alpha
+    (font file missing, glyph unsupported) so the face is never left unblurred.
+    """
     emoji_arr = _render_emoji_to_fit(w, h, char)        # (h, w, 4) RGBA
+    if emoji_arr[:, :, 3].max() == 0:
+        # Emoji rendering failed — pixelate rather than leave face exposed.
+        blur_face_square(image, x, y, w, h)
+        return
     alpha = emoji_arr[:, :, 3:4].astype(float) / 255
     fg_bgr = emoji_arr[:, :, :3].astype(float)[:, :, ::-1]  # RGB → BGR
     bg = image[y:y + h, x:x + w].astype(float)
@@ -1800,8 +1813,14 @@ def _render_expired_image(
             elif style == "silhouette":
                 blur_face_silhouette(img, bx, by, bw, bh)
             elif style.startswith("emoji:"):
-                # emoji char stored separately — fall back to square on re-render
-                blur_face_square(img, bx, by, bw, bh)
+                # Look up the emoji char from EMOJI_OPTIONS using the stored name.
+                emoji_name = style.split(":", 1)[1]
+                emoji_char = EMOJI_OPTIONS.get(emoji_name)
+                if emoji_char:
+                    blur_face_emoji(img, bx, by, bw, bh, emoji_char)
+                else:
+                    # Unknown emoji name — fall back to square.
+                    blur_face_square(img, bx, by, bw, bh)
             else:
                 blur_face_square(img, bx, by, bw, bh)
 
