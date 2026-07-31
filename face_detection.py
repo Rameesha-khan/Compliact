@@ -1863,8 +1863,9 @@ def expiry_watcher(
         return
 
     expired_indices: set[int] = set()
-    # Sort by duration so shortest timer fires first
-    pending.sort(key=lambda d: d["consent_secs"])
+    # Sort by absolute expiry time so faces are processed in true chronological
+    # order, regardless of how long the user took answering each consent question.
+    pending.sort(key=lambda d: d["_granted_at"] + d["consent_secs"])
 
     for detail in pending:
         target_time = detail["_granted_at"] + detail["consent_secs"]
