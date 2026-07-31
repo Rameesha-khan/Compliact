@@ -89,6 +89,34 @@ Any future work involving detection of sensitive categories, such as potential m
 
 ---
 
+## How to Run
+
+1. **Clone or download the repository.**
+   ```
+   git clone https://github.com/Rameesha-khan/Compliact.git
+   ```
+   Or download and unzip the repository from GitHub.
+
+2. **Install Python 3.10 or later** from [python.org](https://www.python.org/downloads/) if you do not already have it.
+
+3. **Install dependencies.**
+   ```
+   pip install -r requirements.txt
+   ```
+   If `pip` is not recognised on its own, use:
+   ```
+   python -m pip install -r requirements.txt
+   ```
+
+4. **Run the script**, replacing `your_image.jpg` with the path to your own photo.
+   ```
+   python face_detection.py your_image.jpg
+   ```
+
+5. **Follow the on-screen prompts** to choose a language and answer consent questions for each detected face. The processed image and a PDF compliance report will be saved automatically in the same folder.
+
+---
+
 ## Team
 
 **Rameesha Munawar.** Lead and principal developer. Designed and built the core detection, consent, blur, scoring, and reporting pipeline, and diagnosed and fixed the consent expiry, detector reliability, colour accuracy, and translation bugs described above.
