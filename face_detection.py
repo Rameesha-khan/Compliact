@@ -1850,21 +1850,37 @@ def expiry_watcher(
     Called in a background thread by detect_faces whenever at least one face
     has an active consent duration.  Each consented face gets its own timer;
     when it fires the image is re-saved with that face now blurred.
+
+    While any timer is still running the image is also re-rendered every
+    TICK_SECS seconds so that the countdown badge visible in the saved file
+    stays close to accurate if someone opens it mid-countdown.
     """
+    _TICK_SECS = 5  # how often to refresh the badge while timers are live
+
     # Only track faces with an active (> 0) consent timer
     pending = [d for d in face_details if d.get("consent_secs") and d["consent_secs"] > 0]
     if not pending:
         return
 
     expired_indices: set[int] = set()
-    # Sort by duration so shortest fires first
+    # Sort by duration so shortest timer fires first
     pending.sort(key=lambda d: d["consent_secs"])
 
     for detail in pending:
         target_time = detail["_granted_at"] + detail["consent_secs"]
-        wait = target_time - time.time()
-        if wait > 0:
-            time.sleep(wait)
+
+        # Tick every TICK_SECS until this face's timer expires.
+        while True:
+            remaining = target_time - time.time()
+            if remaining <= 0:
+                break
+            # Re-render with updated badge for all still-active faces.
+            _render_expired_image(
+                image_path, output_path, faces, face_details, expired_indices, ai_flag, strings
+            )
+            time.sleep(min(_TICK_SECS, remaining))
+
+        # Timer has fired — blur this face and re-render immediately.
         expired_indices.add(detail["index"])
         _render_expired_image(
             image_path, output_path, faces, face_details, expired_indices, ai_flag, strings
